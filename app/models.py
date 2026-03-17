@@ -50,4 +50,7 @@ class Timetable(db.Model):
     professor = db.relationship('User', backref='timetables')
     disciplina = db.relationship('Disciplina', backref='timetables')
 
-    __table_args__ = (db.UniqueConstraint('horario_id', 'sala_id', name='unique_horario_sala'),)
+    __table_args__ = (
+        db.UniqueConstraint('horario_id', 'sala_id', name='unique_horario_sala'),
+        db.UniqueConstraint('horario_id', 'professor_id', name='unique_horario_professor'),
+    )

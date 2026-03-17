@@ -3,8 +3,14 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.forms import LoginForm, RegistrationForm, SalaForm, HorarioForm, DisciplinaForm, TimetableForm
 from app.models import User, Sala, Horario, Disciplina, Timetable
+from datetime import datetime
+from sqlalchemy.orm import joinedload
 
 bp = Blueprint('main', __name__)
+
+def times_overlap(start1, end1, start2, end2):
+    """Verifica se dois intervalos de tempo se sobrepõem."""
+    return max(start1, start2) < min(end1, end2)
 
 @bp.route('/')
 @login_required
@@ -59,13 +65,22 @@ def admin_dashboard():
     horarios = Horario.query.all()
     professores = User.query.filter_by(role='professor').all()
     disciplinas = Disciplina.query.all()
-    timetables = Timetable.query.all()
+    timetables = Timetable.query.options(
+        joinedload(Timetable.horario),
+        joinedload(Timetable.sala),
+        joinedload(Timetable.professor),
+        joinedload(Timetable.disciplina)
+    ).all()
     return render_template('admin_dashboard.html', salas=salas, horarios=horarios, professores=professores, disciplinas=disciplinas, timetables=timetables)
 
 @bp.route('/professor')
 @login_required
 def professor_dashboard():
-    timetables = Timetable.query.filter_by(professor_id=current_user.id).all()
+    timetables = Timetable.query.filter_by(professor_id=current_user.id).options(
+        joinedload(Timetable.horario),
+        joinedload(Timetable.sala),
+        joinedload(Timetable.disciplina)
+    ).all()
     return render_template('professor_dashboard.html', timetables=timetables)
 
 # CRUD Salas
@@ -165,11 +180,22 @@ def new_timetable():
     form.professor_id.choices = [(p.id, p.username) for p in User.query.filter_by(role='professor').all()]
     form.disciplina_id.choices = [(d.id, d.nome) for d in Disciplina.query.all()]
     if form.validate_on_submit():
-        # Verificar conflito
-        existing = Timetable.query.filter_by(horario_id=form.horario_id.data, sala_id=form.sala_id.data).first()
-        if existing:
+        # Verificar conflito de sala
+        existing_sala = Timetable.query.filter_by(horario_id=form.horario_id.data, sala_id=form.sala_id.data).first()
+        if existing_sala:
             flash('Conflito: Horário e sala já alocados')
             return redirect(url_for('main.new_timetable'))
+        
+        # Verificar conflito de professor
+        horario_novo = Horario.query.get(form.horario_id.data)
+        timetables_professor = Timetable.query.filter_by(professor_id=form.professor_id.data).all()
+        
+        for tt in timetables_professor:
+            if tt.horario.dia_semana == horario_novo.dia_semana:
+                if times_overlap(tt.horario.hora_inicio, tt.horario.hora_fim, horario_novo.hora_inicio, horario_novo.hora_fim):
+                    flash('Conflito: Professor já alocado em outro horário que se sobrepõe neste dia')
+                    return redirect(url_for('main.new_timetable'))
+        
         timetable = Timetable(
             horario_id=form.horario_id.data,
             sala_id=form.sala_id.data,

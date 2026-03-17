@@ -1,6 +1,11 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, IntegerField, TimeField, SelectField
-from wtforms.validators import DataRequired, Email, Length, EqualTo
+from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError
+
+def validate_time_range(form, field):
+    if form.hora_inicio.data and form.hora_fim.data:
+        if form.hora_inicio.data >= form.hora_fim.data:
+            raise ValidationError('A hora de início deve ser anterior à hora de fim.')
 
 class LoginForm(FlaskForm):
     username = StringField('Usuário', validators=[DataRequired()])
@@ -26,7 +31,7 @@ class HorarioForm(FlaskForm):
         ('Quinta', 'Quinta'), ('Sexta', 'Sexta'), ('Sábado', 'Sábado'), ('Domingo', 'Domingo')
     ], validators=[DataRequired()])
     hora_inicio = TimeField('Hora Início', validators=[DataRequired()])
-    hora_fim = TimeField('Hora Fim', validators=[DataRequired()])
+    hora_fim = TimeField('Hora Fim', validators=[DataRequired(), validate_time_range])
     submit = SubmitField('Salvar')
 
 class DisciplinaForm(FlaskForm):
