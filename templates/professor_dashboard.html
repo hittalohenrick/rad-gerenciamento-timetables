@@ -1,0 +1,25 @@
+{% extends "base.html" %} {% block title %}Dashboard Professor{% endblock %} {%
+block content %}
+<h1>Minhas Alocações</h1>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Horário</th>
+      <th>Sala</th>
+      <th>Disciplina</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in timetables %}
+    <tr>
+      <td>
+        {{ t.horario.dia_semana }} {{ t.horario.hora_inicio }}-{{
+        t.horario.hora_fim }}
+      </td>
+      <td>{{ t.sala.nome }}</td>
+      <td>{{ t.disciplina.nome }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

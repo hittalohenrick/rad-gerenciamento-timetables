@@ -1,0 +1,59 @@
+{% extends "base.html" %} {% block title %}Dashboard Admin{% endblock %} {%
+block content %}
+<h1>Dashboard Admin</h1>
+<div class="row">
+  <div class="col-md-3">
+    <h3>Salas</h3>
+    <a href="{{ url_for('main.salas') }}" class="btn btn-primary"
+      >Gerenciar Salas</a
+    >
+  </div>
+  <div class="col-md-3">
+    <h3>Horários</h3>
+    <a href="{{ url_for('main.horarios') }}" class="btn btn-primary"
+      >Gerenciar Horários</a
+    >
+  </div>
+  <div class="col-md-3">
+    <h3>Professores</h3>
+    <a href="{{ url_for('main.professores') }}" class="btn btn-primary"
+      >Gerenciar Professores</a
+    >
+  </div>
+  <div class="col-md-3">
+    <h3>Disciplinas</h3>
+    <a href="{{ url_for('main.disciplinas') }}" class="btn btn-primary"
+      >Gerenciar Disciplinas</a
+    >
+  </div>
+</div>
+<div class="mt-4">
+  <h3>Timetables</h3>
+  <a href="{{ url_for('main.new_timetable') }}" class="btn btn-success"
+    >Nova Alocação</a
+  >
+  <table class="table mt-3">
+    <thead>
+      <tr>
+        <th>Horário</th>
+        <th>Sala</th>
+        <th>Professor</th>
+        <th>Disciplina</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in timetables %}
+      <tr>
+        <td>
+          {{ t.horario.dia_semana }} {{ t.horario.hora_inicio }}-{{
+          t.horario.hora_fim }}
+        </td>
+        <td>{{ t.sala.nome }}</td>
+        <td>{{ t.professor.username }}</td>
+        <td>{{ t.disciplina.nome }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

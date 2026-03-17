@@ -1,0 +1,25 @@
+{% extends "base.html" %} {% block title %}Horários{% endblock %} {% block
+content %}
+<h1>Horários</h1>
+<a href="{{ url_for('main.new_horario') }}" class="btn btn-primary"
+  >Novo Horário</a
+>
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>Dia da Semana</th>
+      <th>Hora Início</th>
+      <th>Hora Fim</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for horario in horarios %}
+    <tr>
+      <td>{{ horario.dia_semana }}</td>
+      <td>{{ horario.hora_inicio }}</td>
+      <td>{{ horario.hora_fim }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

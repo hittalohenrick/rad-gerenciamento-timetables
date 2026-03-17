@@ -1,0 +1,24 @@
+{% extends "base.html" %} {% block title %}{{ title }}{% endblock %} {% block
+content %}
+<h1>{{ title }}</h1>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    {{ form.horario_id.label(class="form-label") }} {{
+    form.horario_id(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.sala_id.label(class="form-label") }} {{
+    form.sala_id(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.professor_id.label(class="form-label") }} {{
+    form.professor_id(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.disciplina_id.label(class="form-label") }} {{
+    form.disciplina_id(class="form-control") }}
+  </div>
+  {{ form.submit(class="btn btn-primary") }}
+</form>
+{% endblock %}

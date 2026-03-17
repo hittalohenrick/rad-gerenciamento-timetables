@@ -1,0 +1,23 @@
+{% extends "base.html" %} {% block title %}Disciplinas{% endblock %} {% block
+content %}
+<h1>Disciplinas</h1>
+<a href="{{ url_for('main.new_disciplina') }}" class="btn btn-primary"
+  >Nova Disciplina</a
+>
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>Nome</th>
+      <th>Código</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for disciplina in disciplinas %}
+    <tr>
+      <td>{{ disciplina.nome }}</td>
+      <td>{{ disciplina.codigo }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %} {% block title %}Registrar Usuário{% endblock %} {%
+block content %}
+<h1>Registrar Usuário</h1>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    {{ form.username.label(class="form-label") }} {{
+    form.username(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.email.label(class="form-label") }} {{
+    form.email(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.password.label(class="form-label") }} {{
+    form.password(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.password2.label(class="form-label") }} {{
+    form.password2(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.role.label(class="form-label") }} {{ form.role(class="form-control")
+    }}
+  </div>
+  {{ form.submit(class="btn btn-primary") }}
+</form>
+{% endblock %}

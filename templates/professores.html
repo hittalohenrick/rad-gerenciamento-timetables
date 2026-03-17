@@ -1,0 +1,23 @@
+{% extends "base.html" %} {% block title %}Professores{% endblock %} {% block
+content %}
+<h1>Professores</h1>
+<a href="{{ url_for('main.register') }}" class="btn btn-primary"
+  >Novo Professor</a
+>
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>Usuário</th>
+      <th>Email</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for professor in professores %}
+    <tr>
+      <td>{{ professor.username }}</td>
+      <td>{{ professor.email }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

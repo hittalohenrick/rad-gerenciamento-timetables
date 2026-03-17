@@ -1,0 +1,21 @@
+{% extends "base.html" %} {% block title %}Salas{% endblock %} {% block content
+%}
+<h1>Salas</h1>
+<a href="{{ url_for('main.new_sala') }}" class="btn btn-primary">Nova Sala</a>
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>Nome</th>
+      <th>Capacidade</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sala in salas %}
+    <tr>
+      <td>{{ sala.nome }}</td>
+      <td>{{ sala.capacidade }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
