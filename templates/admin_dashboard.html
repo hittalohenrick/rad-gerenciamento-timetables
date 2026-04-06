@@ -6,7 +6,6 @@ block content %}
   </div>
 </div>
 
-<!-- Estatísticas -->
 <div class="dashboard-stats mb-4">
   <div class="stat-card">
     <h3>{{ salas|length }}</h3>
@@ -22,61 +21,44 @@ block content %}
   </div>
   <div class="stat-card">
     <h3>{{ timetables|length }}</h3>
-    <p>Alocações Ativas</p>
+    <p>Alocacoes Ativas</p>
   </div>
 </div>
 
-<!-- Cards de gerenciamento -->
 <div class="row mb-4">
   <div class="col-md-6 col-lg-4 mb-3">
     <div class="card h-100">
-      <div class="card-header"><i class="fas fa-building me-2"></i>Salas</div>
+      <div class="card-header">Salas</div>
       <div class="card-body text-center">
-        <p class="card-text">Gerencie as salas disponíveis no sistema.</p>
-        <a href="{{ url_for('main.salas') }}" class="btn btn-primary"
-          >Gerenciar Salas</a
-        >
+        <p class="card-text">Gerencie as salas disponiveis no sistema.</p>
+        <a href="{{ url_for('main.salas') }}" class="btn btn-primary">Gerenciar Salas</a>
       </div>
     </div>
   </div>
   <div class="col-md-6 col-lg-4 mb-3">
     <div class="card h-100">
-      <div class="card-header">
-        <i class="fas fa-users me-2"></i>Professores
-      </div>
+      <div class="card-header">Professores</div>
       <div class="card-body text-center">
-        <p class="card-text">Administre os usuários professores.</p>
-        <a href="{{ url_for('main.professores') }}" class="btn btn-primary"
-          >Gerenciar Professores</a
-        >
+        <p class="card-text">Administre os usuarios professores.</p>
+        <a href="{{ url_for('main.professores') }}" class="btn btn-primary">Gerenciar Professores</a>
       </div>
     </div>
   </div>
   <div class="col-md-6 col-lg-4 mb-3">
     <div class="card h-100">
-      <div class="card-header"><i class="fas fa-book me-2"></i>Disciplinas</div>
+      <div class="card-header">Disciplinas</div>
       <div class="card-body text-center">
         <p class="card-text">Cadastre e gerencie as disciplinas.</p>
-        <a href="{{ url_for('main.disciplinas') }}" class="btn btn-primary"
-          >Gerenciar Disciplinas</a
-        >
+        <a href="{{ url_for('main.disciplinas') }}" class="btn btn-primary">Gerenciar Disciplinas</a>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Alocações -->
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <span
-      ><i class="fas fa-calendar-check me-2"></i>Alocações de Timetable</span
-    >
-    <a
-      href="{{ url_for('main.new_timetable') }}"
-      class="btn btn-success btn-sm"
-    >
-      <i class="fas fa-plus me-1"></i>Nova Alocação
-    </a>
+    <span>Alocacoes de Timetable</span>
+    <a href="{{ url_for('main.new_timetable') }}" class="btn btn-success btn-sm">Nova Alocacao</a>
   </div>
   <div class="card-body">
     {% if timetables %}
@@ -85,11 +67,11 @@ block content %}
         <thead>
           <tr>
             <th>Dia</th>
-            <th>Horário</th>
+            <th>Horario</th>
             <th>Sala</th>
             <th>Professor</th>
             <th>Disciplina</th>
-            <th>Ações</th>
+            <th>Acoes</th>
           </tr>
         </thead>
         <tbody>
@@ -97,25 +79,12 @@ block content %}
           <tr>
             <td>{{ t.dia }}</td>
             <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
-            <td>{{ t.sala.nome }}</td>
-            <td>{{ t.professor.username }}</td>
-            <td>{{ t.disciplina.nome }}</td>
+            <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
+            <td>{{ t.professor.username if t.professor else 'Professor removido' }}</td>
+            <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
             <td>
-              <a
-                href="{{ url_for('main.edit_timetable', id=t.id) }}"
-                class="btn btn-sm btn-warning"
-                >Editar</a
-              >
-              <a
-                href="{{ url_for('main.delete_timetable', id=t.id) }}"
-                class="btn btn-sm btn-danger"
-                onclick="
-                  return confirm(
-                    'Tem certeza que deseja deletar esta alocação?',
-                  );
-                "
-                >Deletar</a
-              >
+              <a href="{{ url_for('main.edit_timetable', id=t.id) }}" class="btn btn-sm btn-warning">Editar</a>
+              <a href="{{ url_for('main.delete_timetable', id=t.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza que deseja deletar esta alocacao?');">Deletar</a>
             </td>
           </tr>
           {% endfor %}
@@ -124,12 +93,9 @@ block content %}
     </div>
     {% else %}
     <div class="text-center py-4">
-      <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-      <h5 class="text-muted">Nenhuma alocação cadastrada</h5>
-      <p class="text-muted">Comece criando uma nova alocação de timetable.</p>
-      <a href="{{ url_for('main.new_timetable') }}" class="btn btn-primary">
-        <i class="fas fa-plus me-1"></i>Criar Primeira Alocação
-      </a>
+      <h5 class="text-muted">Nenhuma alocacao cadastrada</h5>
+      <p class="text-muted">Comece criando uma nova alocacao de timetable.</p>
+      <a href="{{ url_for('main.new_timetable') }}" class="btn btn-primary">Criar Primeira Alocacao</a>
     </div>
     {% endif %}
   </div>
