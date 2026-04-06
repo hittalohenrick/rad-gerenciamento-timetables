@@ -23,14 +23,15 @@ content %}
           class="btn btn-sm btn-warning"
           >Editar</a
         >
-        <a
-          href="{{ url_for('main.delete_disciplina', id=disciplina.id) }}"
-          class="btn btn-sm btn-danger"
-          onclick="
-            return confirm('Tem certeza que deseja deletar esta disciplina?');
-          "
-          >Deletar</a
+        <form
+          method="POST"
+          action="{{ url_for('main.delete_disciplina', id=disciplina.id) }}"
+          class="d-inline"
+          onsubmit="return confirm('Tem certeza que deseja deletar esta disciplina?');"
         >
+          {{ delete_form.hidden_tag() }}
+          <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+        </form>
       </td>
     </tr>
     {% endfor %}

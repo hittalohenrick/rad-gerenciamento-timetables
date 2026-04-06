@@ -23,7 +23,15 @@ content %}
       <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
       <td>
         <a href="{{ url_for('main.edit_timetable', id=t.id) }}" class="btn btn-sm btn-warning">Editar</a>
-        <a href="{{ url_for('main.delete_timetable', id=t.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza?');">Deletar</a>
+        <form
+          method="POST"
+          action="{{ url_for('main.delete_timetable', id=t.id) }}"
+          class="d-inline"
+          onsubmit="return confirm('Tem certeza?');"
+        >
+          {{ delete_form.hidden_tag() }}
+          <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+        </form>
       </td>
     </tr>
     {% endfor %}

@@ -4,22 +4,30 @@ Sistema web para gerenciamento de timetables escolares usando Flask.
 
 ## Funcionalidades
 
-- Autenticação de usuários (admin/coordenador e professores)
-- CRUD para salas, horários, professores e disciplinas (apenas admin)
-- Alocação de professores/disciplinas a horários/salas
-- Professores veem apenas suas alocações
+- Login exclusivo do admin (somente o usuario admin pode autenticar)
+- CRUD de salas, horarios, professores e disciplinas
+- Alocacao de professores e disciplinas em horarios e salas
+- Regras de validacao para evitar conflito de horario
+- Exclusoes protegidas via `POST` com CSRF (sem delecao por link `GET`)
 
-## Instalação
+## Controle de Acesso
 
-1. Instalar dependências:
+- O sistema e **admin-only** para autenticacao.
+- Usuarios com papel `professor` existem apenas como dados de dominio para alocacao.
+- Qualquer tentativa de login por perfil nao-admin e bloqueada.
+
+## Instalacao
+
+1. Instalar dependencias:
 
    ```bash
    pip install -r requirements.txt
    ```
 
 2. Configurar banco de dados:
-   - Para desenvolvimento: usa SQLite automaticamente
-   - Para produção: configurar DATABASE_URL no .env (Supabase PostgreSQL)
+   - Desenvolvimento: SQLite local automatico
+   - Producao: configurar `DATABASE_URL` no `.env`
+   - URLs `postgres://` sao normalizadas automaticamente para `postgresql://`
 
 3. Inicializar banco:
 
@@ -35,17 +43,18 @@ Sistema web para gerenciamento de timetables escolares usando Flask.
    ```
 
 5. Executar:
+
    ```bash
    python run.py
    ```
 
-Acesse http://localhost:5000
+Acesse `http://localhost:5000`
 
-Login admin: admin / admin123
+Login padrao:
+- usuario: `admin`
+- senha: `admin123`
 
 ## Testes
-
-Executar testes:
 
 ```bash
 pytest
@@ -53,8 +62,8 @@ pytest
 
 ## Estrutura do Projeto
 
-- `app/`: Código da aplicação
-- `templates/`: Templates HTML
-- `static/`: Arquivos estáticos
-- `migrations/`: Migrations do banco
-- `tests/`: Testes unitários
+- `app/`: codigo da aplicacao
+- `templates/`: templates HTML
+- `static/`: arquivos estaticos
+- `migrations/`: migracoes
+- `tests/`: testes unitarios

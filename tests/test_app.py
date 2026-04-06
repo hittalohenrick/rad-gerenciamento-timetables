@@ -58,6 +58,28 @@ def test_login_page(client):
     assert b"Login" in response.data
 
 
+def test_non_admin_login_is_blocked(app, client):
+    with app.app_context():
+        create_admin()
+        professor = User(username="professor-login", email="prof-login@test.com", role="professor")
+        professor.set_password("prof12345")
+        db.session.add(professor)
+        db.session.commit()
+
+    response = client.post(
+        "/login",
+        data={"username": "professor-login", "password": "prof12345"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Apenas o admin pode fazer login neste sistema." in response.data
+    assert b"Login" in response.data
+
+    admin_page = client.get("/admin")
+    assert admin_page.status_code == 302
+
+
 def test_professor_overlap_conflict_detection(app):
     with app.app_context():
         professor = User(username="professor1", email="prof1@test.com", role="professor")
@@ -133,8 +155,8 @@ def test_invalid_time_range_validation(app):
     with app.test_request_context():
         form = TimetableForm(meta={"csrf": False})
         form.dia.data = "Segunda"
-        form.hora_inicio.data = "10:00"
-        form.hora_fim.data = "09:00"
+        form.hora_inicio.data = time(10, 0)
+        form.hora_fim.data = time(9, 0)
 
         form.sala_id.choices = [(1, "Sala 1")]
         form.professor_id.choices = [(1, "Professor")]
@@ -146,6 +168,23 @@ def test_invalid_time_range_validation(app):
         assert not form.validate()
         assert len(form.hora_fim.errors) > 0
         assert "inicio" in form.hora_fim.errors[0].lower()
+
+
+def test_manual_time_input_accepts_non_fixed_intervals(app):
+    with app.test_request_context():
+        form = TimetableForm(meta={"csrf": False})
+        form.dia.data = "Segunda"
+        form.hora_inicio.data = time(20, 0)
+        form.hora_fim.data = time(21, 30)
+
+        form.sala_id.choices = [(1, "Sala 1")]
+        form.professor_id.choices = [(1, "Professor")]
+        form.disciplina_id.choices = [(1, "Disciplina")]
+        form.sala_id.data = 1
+        form.professor_id.data = 1
+        form.disciplina_id.data = 1
+
+        assert form.validate()
 
 
 def test_prevent_delete_sala_with_timetable(app, client):
@@ -173,13 +212,26 @@ def test_prevent_delete_sala_with_timetable(app, client):
         sala_id = sala.id
 
     login_as_admin(client)
-    response = client.get(f"/sala/delete/{sala_id}", follow_redirects=True)
+    response = client.post(f"/sala/delete/{sala_id}", data={}, follow_redirects=True)
 
     assert response.status_code == 200
     assert b"Nao e possivel deletar sala com alocacoes vinculadas." in response.data
 
     with app.app_context():
         assert db.session.get(Sala, sala_id) is not None
+
+
+def test_delete_routes_disallow_get_method(app, client):
+    with app.app_context():
+        create_admin()
+        sala = Sala(nome="Sala Teste", capacidade=20)
+        db.session.add(sala)
+        db.session.commit()
+        sala_id = sala.id
+
+    login_as_admin(client)
+    response = client.get(f"/sala/delete/{sala_id}")
+    assert response.status_code == 405
 
 
 def test_prevent_duplicate_professor_email(app, client):

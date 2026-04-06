@@ -4,9 +4,9 @@ from app.models import User
 app = create_app()
 
 with app.app_context():
-    admin = User.query.filter_by(username='admin').first()
+    admin = User.query.filter_by(role='admin').first()
     if admin:
-        print('Admin ja existe.')
+        print(f'Admin ja existe: {admin.username}')
     else:
         admin = User(username='admin', email='admin@example.com', role='admin')
         admin.set_password('admin123')

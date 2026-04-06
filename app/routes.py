@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 
 from app import db
 from app.forms import (
+    DeleteForm,
     DisciplinaForm,
     LoginForm,
     ProfessorForm,
@@ -30,8 +31,9 @@ def times_overlap(start1, end1, start2, end2):
 def admin_required_redirect():
     if current_user.is_admin():
         return None
+    logout_user()
     flash("Acesso negado.", "danger")
-    return redirect(url_for("main.index"))
+    return redirect(url_for("main.login"))
 
 
 def normalize_text(value):
@@ -103,9 +105,11 @@ def disciplina_name_exists(nome, exclude_disciplina_id=None):
 @bp.route("/")
 @login_required
 def index():
-    if current_user.is_admin():
-        return redirect(url_for("main.admin_dashboard"))
-    return redirect(url_for("main.professor_dashboard"))
+    if not current_user.is_admin():
+        logout_user()
+        flash("Apenas o admin pode acessar este sistema.", "danger")
+        return redirect(url_for("main.login"))
+    return redirect(url_for("main.admin_dashboard"))
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -120,6 +124,10 @@ def login():
 
         if user is None or not user.check_password(form.password.data):
             flash("Usuario ou senha invalidos.", "danger")
+            return redirect(url_for("main.login"))
+
+        if not user.is_admin():
+            flash("Apenas o admin pode fazer login neste sistema.", "danger")
             return redirect(url_for("main.login"))
 
         login_user(user)
@@ -152,7 +160,7 @@ def register():
             flash(duplicate_error, "warning")
             return render_template("register.html", title="Registrar Usuario", form=form)
 
-        user = User(username=username, email=email, role=form.role.data)
+        user = User(username=username, email=email, role="professor")
         user.set_password(form.password.data)
 
         db.session.add(user)
@@ -189,12 +197,15 @@ def admin_dashboard():
         .all()
     )
 
+    delete_form = DeleteForm()
+
     return render_template(
         "admin_dashboard.html",
         salas=salas,
         professores=professores,
         disciplinas=disciplinas,
         timetables=timetables,
+        delete_form=delete_form,
     )
 
 
@@ -214,19 +225,17 @@ def horarios():
         .order_by(Timetable.dia.asc(), Timetable.hora_inicio.asc())
         .all()
     )
-    return render_template("horarios.html", timetables=timetables)
+    delete_form = DeleteForm()
+    return render_template("horarios.html", timetables=timetables, delete_form=delete_form)
 
 
 @bp.route("/professor")
 @login_required
 def professor_dashboard():
-    timetables = (
-        Timetable.query.filter_by(professor_id=current_user.id)
-        .options(joinedload(Timetable.sala), joinedload(Timetable.disciplina))
-        .order_by(Timetable.dia.asc(), Timetable.hora_inicio.asc())
-        .all()
-    )
-    return render_template("professor_dashboard.html", timetables=timetables)
+    guard = admin_required_redirect()
+    if guard:
+        return guard
+    return redirect(url_for("main.admin_dashboard"))
 
 
 # CRUD Salas
@@ -238,7 +247,8 @@ def salas():
         return guard
 
     salas = Sala.query.order_by(Sala.nome.asc()).all()
-    return render_template("salas.html", salas=salas)
+    delete_form = DeleteForm()
+    return render_template("salas.html", salas=salas, delete_form=delete_form)
 
 
 @bp.route("/sala/new", methods=["GET", "POST"])
@@ -278,7 +288,7 @@ def edit_sala(id):
     if guard:
         return guard
 
-    sala = Sala.query.get_or_404(id)
+    sala = db.get_or_404(Sala, id)
     form = SalaForm()
 
     if form.validate_on_submit():
@@ -307,14 +317,19 @@ def edit_sala(id):
     return render_template("sala_form.html", form=form, title="Editar Sala")
 
 
-@bp.route("/sala/delete/<int:id>")
+@bp.route("/sala/delete/<int:id>", methods=["POST"])
 @login_required
 def delete_sala(id):
     guard = admin_required_redirect()
     if guard:
         return guard
 
-    sala = Sala.query.get_or_404(id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash("Requisicao invalida.", "danger")
+        return redirect(url_for("main.salas"))
+
+    sala = db.get_or_404(Sala, id)
     related_timetables = Timetable.query.filter_by(sala_id=sala.id).count()
     if related_timetables > 0:
         flash("Nao e possivel deletar sala com alocacoes vinculadas.", "warning")
@@ -342,7 +357,8 @@ def disciplinas():
         return guard
 
     disciplinas = Disciplina.query.order_by(Disciplina.nome.asc()).all()
-    return render_template("disciplinas.html", disciplinas=disciplinas)
+    delete_form = DeleteForm()
+    return render_template("disciplinas.html", disciplinas=disciplinas, delete_form=delete_form)
 
 
 @bp.route("/disciplina/new", methods=["GET", "POST"])
@@ -382,7 +398,7 @@ def edit_disciplina(id):
     if guard:
         return guard
 
-    disciplina = Disciplina.query.get_or_404(id)
+    disciplina = db.get_or_404(Disciplina, id)
     form = DisciplinaForm()
 
     if form.validate_on_submit():
@@ -409,14 +425,19 @@ def edit_disciplina(id):
     return render_template("disciplina_form.html", form=form, title="Editar Disciplina")
 
 
-@bp.route("/disciplina/delete/<int:id>")
+@bp.route("/disciplina/delete/<int:id>", methods=["POST"])
 @login_required
 def delete_disciplina(id):
     guard = admin_required_redirect()
     if guard:
         return guard
 
-    disciplina = Disciplina.query.get_or_404(id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash("Requisicao invalida.", "danger")
+        return redirect(url_for("main.disciplinas"))
+
+    disciplina = db.get_or_404(Disciplina, id)
     related_timetables = Timetable.query.filter_by(disciplina_id=disciplina.id).count()
     if related_timetables > 0:
         flash("Nao e possivel deletar disciplina com alocacoes vinculadas.", "warning")
@@ -444,7 +465,8 @@ def professores():
         return guard
 
     professores = User.query.filter_by(role="professor").order_by(User.username.asc()).all()
-    return render_template("professores.html", professores=professores)
+    delete_form = DeleteForm()
+    return render_template("professores.html", professores=professores, delete_form=delete_form)
 
 
 @bp.route("/professor/new", methods=["GET", "POST"])
@@ -488,7 +510,7 @@ def edit_professor(id):
     if guard:
         return guard
 
-    professor = User.query.get_or_404(id)
+    professor = db.get_or_404(User, id)
     if professor.role != "professor":
         flash("Usuario selecionado nao e professor.", "warning")
         return redirect(url_for("main.professores"))
@@ -523,14 +545,19 @@ def edit_professor(id):
     return render_template("register.html", title="Editar Professor", form=form)
 
 
-@bp.route("/professor/delete/<int:id>")
+@bp.route("/professor/delete/<int:id>", methods=["POST"])
 @login_required
 def delete_professor(id):
     guard = admin_required_redirect()
     if guard:
         return guard
 
-    professor = User.query.get_or_404(id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash("Requisicao invalida.", "danger")
+        return redirect(url_for("main.professores"))
+
+    professor = db.get_or_404(User, id)
     if professor.role != "professor":
         flash("Usuario selecionado nao e professor.", "warning")
         return redirect(url_for("main.professores"))
@@ -621,7 +648,7 @@ def edit_timetable(id):
     if guard:
         return guard
 
-    timetable = Timetable.query.get_or_404(id)
+    timetable = db.get_or_404(Timetable, id)
     form = TimetableForm()
     form.sala_id.choices = [(s.id, s.nome) for s in Sala.query.order_by(Sala.nome.asc()).all()]
     form.professor_id.choices = [
@@ -666,8 +693,8 @@ def edit_timetable(id):
 
     if request.method == "GET":
         form.dia.data = timetable.dia
-        form.hora_inicio.data = timetable.hora_inicio.strftime("%H:%M")
-        form.hora_fim.data = timetable.hora_fim.strftime("%H:%M")
+        form.hora_inicio.data = timetable.hora_inicio
+        form.hora_fim.data = timetable.hora_fim
         form.sala_id.data = timetable.sala_id
         form.professor_id.data = timetable.professor_id
         form.disciplina_id.data = timetable.disciplina_id
@@ -675,14 +702,19 @@ def edit_timetable(id):
     return render_template("timetable_form.html", form=form, title="Editar Alocacao")
 
 
-@bp.route("/timetable/delete/<int:id>")
+@bp.route("/timetable/delete/<int:id>", methods=["POST"])
 @login_required
 def delete_timetable(id):
     guard = admin_required_redirect()
     if guard:
         return guard
 
-    timetable = Timetable.query.get_or_404(id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash("Requisicao invalida.", "danger")
+        return redirect(url_for("main.admin_dashboard"))
+
+    timetable = db.get_or_404(Timetable, id)
     db.session.delete(timetable)
 
     try:

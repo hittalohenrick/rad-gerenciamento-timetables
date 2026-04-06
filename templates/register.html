@@ -18,7 +18,7 @@
   {{ render_field(form.password2) }}
   {% endif %}
 
-  {% if form.role is defined %}
+  {% if form.role is defined and form.role.choices|length > 1 %}
   {{ render_field(form.role) }}
   {% endif %}
 

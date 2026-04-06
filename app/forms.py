@@ -1,22 +1,13 @@
-from datetime import datetime, timedelta
+from datetime import datetime, time
 
 from flask_wtf import FlaskForm
-from wtforms import IntegerField, PasswordField, SelectField, StringField, SubmitField
+from wtforms import IntegerField, PasswordField, SelectField, StringField, SubmitField, TimeField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, ValidationError
 
 
-def generate_time_choices(step=15):
-    choices = []
-    current = datetime.strptime("00:00", "%H:%M")
-    end = datetime.strptime("23:59", "%H:%M")
-    while current <= end:
-        value = current.strftime("%H:%M")
-        choices.append((value, value))
-        current = current + timedelta(minutes=step)
-    return choices
-
-
 def parse_time(value):
+    if isinstance(value, time):
+        return value
     return datetime.strptime(value, "%H:%M").time()
 
 
@@ -41,7 +32,7 @@ class RegistrationForm(FlaskForm):
     password2 = PasswordField("Repetir Senha", validators=[DataRequired(), EqualTo("password")])
     role = SelectField(
         "Funcao",
-        choices=[("professor", "Professor"), ("admin", "Admin")],
+        choices=[("professor", "Professor")],
         validators=[DataRequired()],
         default="professor",
     )
@@ -79,15 +70,13 @@ class TimetableForm(FlaskForm):
         ],
         validators=[DataRequired()],
     )
-    hora_inicio = SelectField(
-        "Horario Inicio", choices=generate_time_choices(15), validators=[DataRequired()]
-    )
-    hora_fim = SelectField(
-        "Horario Fim",
-        choices=generate_time_choices(15),
-        validators=[DataRequired(), validate_time_range],
-    )
+    hora_inicio = TimeField("Horario Inicio", format="%H:%M", validators=[DataRequired()])
+    hora_fim = TimeField("Horario Fim", format="%H:%M", validators=[DataRequired(), validate_time_range])
     sala_id = SelectField("Sala", coerce=int, validators=[DataRequired()])
     professor_id = SelectField("Professor", coerce=int, validators=[DataRequired()])
     disciplina_id = SelectField("Disciplina", coerce=int, validators=[DataRequired()])
     submit = SubmitField("Alocar")
+
+
+class DeleteForm(FlaskForm):
+    submit = SubmitField("Deletar")
