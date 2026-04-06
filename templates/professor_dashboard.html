@@ -16,7 +16,7 @@ content %}
       <table class="table table-hover mb-0">
         <thead>
           <tr>
-            <th>Dia da Semana</th>
+            <th>Dia</th>
             <th>Horário</th>
             <th>Sala</th>
             <th>Disciplina</th>
@@ -25,10 +25,10 @@ content %}
         <tbody>
           {% for t in timetables %}
           <tr>
-            <td><strong>{{ t.horario.dia_semana }}</strong></td>
+            <td><strong>{{ t.dia }}</strong></td>
             <td>
               <span class="badge bg-primary"
-                >{{ t.horario.hora_inicio }} - {{ t.horario.hora_fim }}</span
+                >{{ t.hora_inicio }} - {{ t.hora_fim }}</span
               >
             </td>
             <td>{{ t.sala.nome }}</td>

@@ -13,10 +13,6 @@ block content %}
     <p>Salas Cadastradas</p>
   </div>
   <div class="stat-card">
-    <h3>{{ horarios|length }}</h3>
-    <p>Horários Disponíveis</p>
-  </div>
-  <div class="stat-card">
     <h3>{{ professores|length }}</h3>
     <p>Professores</p>
   </div>
@@ -32,7 +28,7 @@ block content %}
 
 <!-- Cards de gerenciamento -->
 <div class="row mb-4">
-  <div class="col-md-6 col-lg-3 mb-3">
+  <div class="col-md-6 col-lg-4 mb-3">
     <div class="card h-100">
       <div class="card-header"><i class="fas fa-building me-2"></i>Salas</div>
       <div class="card-body text-center">
@@ -43,18 +39,7 @@ block content %}
       </div>
     </div>
   </div>
-  <div class="col-md-6 col-lg-3 mb-3">
-    <div class="card h-100">
-      <div class="card-header"><i class="fas fa-clock me-2"></i>Horários</div>
-      <div class="card-body text-center">
-        <p class="card-text">Configure os horários de aula disponíveis.</p>
-        <a href="{{ url_for('main.horarios') }}" class="btn btn-primary"
-          >Gerenciar Horários</a
-        >
-      </div>
-    </div>
-  </div>
-  <div class="col-md-6 col-lg-3 mb-3">
+  <div class="col-md-6 col-lg-4 mb-3">
     <div class="card h-100">
       <div class="card-header">
         <i class="fas fa-users me-2"></i>Professores
@@ -67,7 +52,7 @@ block content %}
       </div>
     </div>
   </div>
-  <div class="col-md-6 col-lg-3 mb-3">
+  <div class="col-md-6 col-lg-4 mb-3">
     <div class="card h-100">
       <div class="card-header"><i class="fas fa-book me-2"></i>Disciplinas</div>
       <div class="card-body text-center">
@@ -99,24 +84,39 @@ block content %}
       <table class="table table-hover mb-0">
         <thead>
           <tr>
+            <th>Dia</th>
             <th>Horário</th>
             <th>Sala</th>
             <th>Professor</th>
             <th>Disciplina</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody>
           {% for t in timetables %}
           <tr>
-            <td>
-              <strong>{{ t.horario.dia_semana }}</strong><br />
-              <small class="text-muted"
-                >{{ t.horario.hora_inicio }} - {{ t.horario.hora_fim }}</small
-              >
-            </td>
+            <td>{{ t.dia }}</td>
+            <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
             <td>{{ t.sala.nome }}</td>
             <td>{{ t.professor.username }}</td>
             <td>{{ t.disciplina.nome }}</td>
+            <td>
+              <a
+                href="{{ url_for('main.edit_timetable', id=t.id) }}"
+                class="btn btn-sm btn-warning"
+                >Editar</a
+              >
+              <a
+                href="{{ url_for('main.delete_timetable', id=t.id) }}"
+                class="btn btn-sm btn-danger"
+                onclick="
+                  return confirm(
+                    'Tem certeza que deseja deletar esta alocação?',
+                  );
+                "
+                >Deletar</a
+              >
+            </td>
           </tr>
           {% endfor %}
         </tbody>

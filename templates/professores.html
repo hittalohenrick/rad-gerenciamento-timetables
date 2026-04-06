@@ -1,14 +1,15 @@
 {% extends "base.html" %} {% block title %}Professores{% endblock %} {% block
 content %}
 <h1>Professores</h1>
-<a href="{{ url_for('main.register') }}" class="btn btn-primary"
+<a href="{{ url_for('main.new_professor') }}" class="btn btn-primary"
   >Novo Professor</a
 >
 <table class="table mt-3">
   <thead>
     <tr>
-      <th>Usuário</th>
+      <th>Nome</th>
       <th>Email</th>
+      <th>Ações</th>
     </tr>
   </thead>
   <tbody>
@@ -16,6 +17,21 @@ content %}
     <tr>
       <td>{{ professor.username }}</td>
       <td>{{ professor.email }}</td>
+      <td>
+        <a
+          href="{{ url_for('main.edit_professor', id=professor.id) }}"
+          class="btn btn-sm btn-warning"
+          >Editar</a
+        >
+        <a
+          href="{{ url_for('main.delete_professor', id=professor.id) }}"
+          class="btn btn-sm btn-danger"
+          onclick="
+            return confirm('Tem certeza que deseja deletar este professor?');
+          "
+          >Deletar</a
+        >
+      </td>
     </tr>
     {% endfor %}
   </tbody>

@@ -27,12 +27,6 @@ class Sala(db.Model):
     nome = db.Column(db.String(100), nullable=False)
     capacidade = db.Column(db.Integer, nullable=False)
 
-class Horario(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    dia_semana = db.Column(db.String(20), nullable=False)  # e.g., 'Segunda', 'Terça'
-    hora_inicio = db.Column(db.Time, nullable=False)
-    hora_fim = db.Column(db.Time, nullable=False)
-
 class Disciplina(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
@@ -40,17 +34,18 @@ class Disciplina(db.Model):
 
 class Timetable(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    horario_id = db.Column(db.Integer, db.ForeignKey('horario.id'), nullable=False)
+    dia = db.Column(db.String(20), nullable=False)  # e.g., 'Segunda', 'Terça'
+    hora_inicio = db.Column(db.Time, nullable=False)
+    hora_fim = db.Column(db.Time, nullable=False)
     sala_id = db.Column(db.Integer, db.ForeignKey('sala.id'), nullable=False)
     professor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     disciplina_id = db.Column(db.Integer, db.ForeignKey('disciplina.id'), nullable=False)
 
-    horario = db.relationship('Horario', backref='timetables')
     sala = db.relationship('Sala', backref='timetables')
     professor = db.relationship('User', backref='timetables')
     disciplina = db.relationship('Disciplina', backref='timetables')
 
     __table_args__ = (
-        db.UniqueConstraint('horario_id', 'sala_id', name='unique_horario_sala'),
-        db.UniqueConstraint('horario_id', 'professor_id', name='unique_horario_professor'),
+        db.UniqueConstraint('dia', 'hora_inicio', 'hora_fim', 'sala_id', name='unique_dia_horario_sala'),
+        db.UniqueConstraint('dia', 'hora_inicio', 'hora_fim', 'professor_id', name='unique_dia_horario_professor'),
     )

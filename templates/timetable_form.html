@@ -4,8 +4,22 @@ content %}
 <form method="POST">
   {{ form.hidden_tag() }}
   <div class="mb-3">
-    {{ form.horario_id.label(class="form-label") }} {{
-    form.horario_id(class="form-control") }}
+    {{ form.dia.label(class="form-label") }} {{ form.dia(class="form-control")
+    }}
+  </div>
+  <div class="mb-3">
+    {{ form.hora_inicio.label(class="form-label") }} {{
+    form.hora_inicio(class="form-control") }}
+    <div class="form-text">
+      Formato 24h (ex: 13:30). Não precisa digitar AM/PM.
+    </div>
+  </div>
+  <div class="mb-3">
+    {{ form.hora_fim.label(class="form-label") }} {{
+    form.hora_fim(class="form-control") }}
+    <div class="form-text">
+      Formato 24h (ex: 14:30). Não precisa digitar AM/PM.
+    </div>
   </div>
   <div class="mb-3">
     {{ form.sala_id.label(class="form-label") }} {{

@@ -1,23 +1,41 @@
 {% extends "base.html" %} {% block title %}Horários{% endblock %} {% block
 content %}
 <h1>Horários</h1>
-<a href="{{ url_for('main.new_horario') }}" class="btn btn-primary"
-  >Novo Horário</a
+<a href="{{ url_for('main.new_timetable') }}" class="btn btn-primary"
+  >Nova Alocação</a
 >
 <table class="table mt-3">
   <thead>
     <tr>
-      <th>Dia da Semana</th>
-      <th>Hora Início</th>
-      <th>Hora Fim</th>
+      <th>Dia</th>
+      <th>Horário</th>
+      <th>Sala</th>
+      <th>Professor</th>
+      <th>Disciplina</th>
+      <th>Ações</th>
     </tr>
   </thead>
   <tbody>
-    {% for horario in horarios %}
+    {% for t in timetables %}
     <tr>
-      <td>{{ horario.dia_semana }}</td>
-      <td>{{ horario.hora_inicio }}</td>
-      <td>{{ horario.hora_fim }}</td>
+      <td>{{ t.dia }}</td>
+      <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
+      <td>{{ t.sala.nome }}</td>
+      <td>{{ t.professor.username }}</td>
+      <td>{{ t.disciplina.nome }}</td>
+      <td>
+        <a
+          href="{{ url_for('main.edit_timetable', id=t.id) }}"
+          class="btn btn-sm btn-warning"
+          >Editar</a
+        >
+        <a
+          href="{{ url_for('main.delete_timetable', id=t.id) }}"
+          class="btn btn-sm btn-danger"
+          onclick="return confirm('Tem certeza?');"
+          >Deletar</a
+        >
+      </td>
     </tr>
     {% endfor %}
   </tbody>
