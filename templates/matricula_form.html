@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="surface form-shell stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Matrícula em Turma</p>
+      <h1>{{ title }}</h1>
+    </div>
+  </div>
+  <form method="POST" novalidate>
+    {{ form.hidden_tag() }}
+    {{ render_field(form.aluno_id) }}
+    {{ render_field(form.timetable_id) }}
+
+    {{ form.submit(class="btn btn-primary") }}
+  </form>
+</section>
+{% endblock %}

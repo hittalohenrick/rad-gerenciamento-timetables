@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Alunos{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Corpo Discente</p>
+      <h1>Alunos</h1>
+    </div>
+    <a href="{{ url_for('main.new_aluno') }}" class="btn btn-primary">Novo Aluno</a>
+  </div>
+
+  <div class="surface table-shell">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Matrícula</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for aluno in alunos %}
+          <tr>
+            <td>{{ aluno.nome }}</td>
+            <td>{{ aluno.matricula }}</td>
+            <td class="actions-cell">
+              <a href="{{ url_for('main.edit_aluno', id=aluno.id) }}" class="btn btn-sm btn-edit">Editar</a>
+              <form
+                method="POST"
+                action="{{ url_for('main.delete_aluno', id=aluno.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Tem certeza que deseja deletar este aluno?');"
+              >
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

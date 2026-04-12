@@ -15,7 +15,7 @@ login_manager = LoginManager()
 migrate = Migrate()
 
 
-REQUIRED_TABLES = {"user", "sala", "disciplina", "timetable"}
+REQUIRED_TABLES = {"user", "sala", "disciplina", "timetable", "aluno", "matricula", "presenca"}
 
 
 @event.listens_for(Engine, "connect")
@@ -35,9 +35,11 @@ def ensure_minimum_schema(app):
             db.create_all()
 
 
-def create_app():
+def create_app(config_overrides=None):
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     app.config.from_object(Config)
+    if config_overrides:
+        app.config.update(config_overrides)
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -46,7 +48,8 @@ def create_app():
     # Importa os modelos antes de create_all para registrar metadata das tabelas.
     from app import models  # noqa: F401
 
-    ensure_minimum_schema(app)
+    if not app.config.get("TESTING", False):
+        ensure_minimum_schema(app)
 
     login_manager.login_view = "main.login"
     login_manager.login_message = "Faca login para acessar esta pagina."

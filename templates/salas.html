@@ -1,38 +1,47 @@
-{% extends "base.html" %} {% block title %}Salas{% endblock %} {% block content
-%}
-<h1>Salas</h1>
-<a href="{{ url_for('main.new_sala') }}" class="btn btn-primary">Nova Sala</a>
-<table class="table mt-3">
-  <thead>
-    <tr>
-      <th>Nome</th>
-      <th>Capacidade</th>
-      <th>Ações</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for sala in salas %}
-    <tr>
-      <td>{{ sala.nome }}</td>
-      <td>{{ sala.capacidade }}</td>
-      <td>
-        <a
-          href="{{ url_for('main.edit_sala', id=sala.id) }}"
-          class="btn btn-sm btn-warning"
-          >Editar</a
-        >
-        <form
-          method="POST"
-          action="{{ url_for('main.delete_sala', id=sala.id) }}"
-          class="d-inline"
-          onsubmit="return confirm('Tem certeza que deseja deletar esta sala?');"
-        >
-          {{ delete_form.hidden_tag() }}
-          <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% extends "base.html" %}
+{% block title %}Salas{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Infraestrutura</p>
+      <h1>Salas</h1>
+    </div>
+    <a href="{{ url_for('main.new_sala') }}" class="btn btn-primary">Nova Sala</a>
+  </div>
+
+  <div class="surface table-shell">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Capacidade</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sala in salas %}
+          <tr>
+            <td>{{ sala.nome }}</td>
+            <td>{{ sala.capacidade }}</td>
+            <td class="actions-cell">
+              <a href="{{ url_for('main.edit_sala', id=sala.id) }}" class="btn btn-sm btn-edit">Editar</a>
+              <form
+                method="POST"
+                action="{{ url_for('main.delete_sala', id=sala.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Tem certeza que deseja deletar esta sala?');"
+              >
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 {% endblock %}

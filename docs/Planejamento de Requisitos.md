@@ -1,74 +1,136 @@
 # Documento de Planejamento de Requisitos
 
-## Sistema de Gerenciamento de TimeTables
+## Sistema de Gerenciamento de Timetables
 
-- **Curso/Disciplina:** Desenvolvimento de Sistemas
-- **Data:** 23 de marco de 2026
+- **Disciplina:** Desenvolvimento Rapido de Aplicacoes em Python (RAD)
+- **Professor:** Elton Silva
+- **Semestre:** 2026_01
+- **Data da versao:** 12/04/2026
 
-## 1. Introducao
+## 1. Definicao do Problema
 
-Este documento descreve os requisitos funcionais e a arquitetura tecnica para o sistema de Gerenciamento de TimeTables. O objetivo do sistema e permitir que administradores gerenciem a alocacao de professores e disciplinas em salas de aula de forma organizada e eficiente.
+A grade academica costuma ser controlada de forma manual (planilhas, mensagens e comunicacoes isoladas), o que causa conflitos de horario entre sala/professor, retrabalho de alocacao e pouco controle de presenca.
 
-## 2. Arquitetura e Stack Tecnologica
+## 2. Objetivo do Sistema
 
-O projeto sera desenvolvido seguindo padroes de mercado para garantir manutenibilidade e escalabilidade inicial:
+Desenvolver uma aplicacao web para administrar turmas e horarios de forma centralizada, com:
 
-- **Linguagem:** Python 3.x
+- autenticacao por perfil (`admin` e `professor`);
+- cadastro e manutencao de entidades academicas;
+- alocacao de turmas sem conflitos de agenda;
+- alocacao de alunos em turmas;
+- registro de chamada por professor.
+
+## 3. Escopo Funcional (Requisitos Funcionais)
+
+### RF01 - Autenticacao e controle de acesso
+- Login com usuario e senha.
+- Redirecionamento por perfil.
+- Restricao de rotas administrativas para perfil `admin`.
+
+### RF02 - Gerenciamento de salas (CRUD)
+- Cadastrar, listar, editar e excluir salas.
+- Validar nome e capacidade.
+
+### RF03 - Gerenciamento de disciplinas (CRUD)
+- Cadastrar, listar, editar e excluir disciplinas.
+- Gerar codigo unico da disciplina.
+
+### RF04 - Gerenciamento de professores (CRUD)
+- Cadastrar, listar, editar e excluir professores.
+- Definir login, email e senha.
+- Permitir reset de senha com troca obrigatoria no proximo login.
+
+### RF05 - Gerenciamento de alunos (CRUD)
+- Cadastrar, listar, editar e excluir alunos.
+- Garantir matricula unica.
+
+### RF06 - Gerenciamento de alocacoes (timetable) (CRUD)
+- Cadastrar, listar, editar e excluir turmas (dia, horario, sala, professor, disciplina).
+- Bloquear conflitos de horario por sala e por professor.
+- Bloquear faixa de horario invalida (`hora_inicio >= hora_fim`).
+
+### RF07 - Alocacao de alunos em turmas
+- Vincular aluno a turma.
+- Bloquear duplicidade da mesma matricula na mesma turma.
+- Bloquear conflito de horario do aluno.
+- Respeitar capacidade maxima da sala.
+
+### RF08 - Chamada por professor
+- Professor registra presenca por turma e por data.
+- Bloquear chamada em data futura.
+- Bloquear chamada em dia da semana diferente do dia da turma.
+- Atualizar chamada da mesma data sem duplicar registros.
+
+### RF09 - Seguranca de senha
+- Validar politica minima de senha (letra maiuscula, minuscula e numero).
+- Permitir troca de senha do usuario autenticado.
+
+## 4. Requisitos Nao Funcionais
+
+### RNF01 - Tecnologia
+- Backend em Python com Flask.
+- Persistencia com banco relacional SQLite.
+- ORM com SQLAlchemy e migracoes Alembic.
+
+### RNF02 - Integridade de dados
+- Uso de chaves estrangeiras e constraints de unicidade.
+- Tratamento de excecoes de integridade no backend.
+
+### RNF03 - Usabilidade
+- Interface web responsiva.
+- Fluxo de navegacao separado por perfil.
+- Formularios com feedback de validacao.
+
+### RNF04 - Seguranca
+- Senhas armazenadas com hash.
+- Rotas sensiveis protegidas por autenticacao e autorizacao.
+- Operacoes destrutivas via `POST` com CSRF.
+
+### RNF05 - Qualidade
+- Testes automatizados de unidade/integracao (pytest) e E2E (Playwright).
+
+## 5. Ferramentas e Tecnologias Escolhidas
+
+- **Linguagem:** Python 3.12
 - **Framework Web:** Flask
-- **Banco de Dados:** SQLite (padrao para desenvolvimento e portabilidade)
-- **ORM:** SQLAlchemy (via Flask-SQLAlchemy)
-- **Versionamento de Banco:** Flask-Migrate (Alembic)
-- **Seguranca:** Hashing de senhas para o Admin (Werkzeug Security)
+- **Banco de Dados:** SQLite
+- **ORM:** Flask-SQLAlchemy
+- **Migracoes:** Flask-Migrate / Alembic
+- **Autenticacao:** Flask-Login
+- **Validacao de formularios:** Flask-WTF / WTForms
+- **Frontend:** Jinja2 + Bootstrap + CSS customizado
+- **Testes:** pytest + Playwright
+- **Versionamento:** Git
 
-## 3. Requisitos Funcionais
+## 6. Modelo Inicial do Banco de Dados
 
-### 3.1 RF01 - Autenticacao de Administrador
+### Entidades principais
+- `user` (usuarios administrativos e professores)
+- `sala`
+- `disciplina`
+- `timetable`
+- `aluno`
+- `matricula`
+- `presenca`
 
-- **Tela de Login:** Campos para Usuario e Senha.
-- **Seguranca:** Acesso restrito as areas de gerenciamento apenas para usuarios autenticados.
+### Relacionamentos iniciais
+- `sala (1) -> (N) timetable`
+- `user/professor (1) -> (N) timetable`
+- `disciplina (1) -> (N) timetable`
+- `aluno (1) -> (N) matricula`
+- `timetable (1) -> (N) matricula`
+- `aluno (1) -> (N) presenca`
+- `timetable (1) -> (N) presenca`
 
-### 3.2 RF02 - Gerenciamento de Salas
+### Regras iniciais de consistencia
+- Unicidade de login e email do usuario.
+- Unicidade de matricula de aluno.
+- Unicidade de alocacao por sala e por professor no mesmo intervalo.
+- Unicidade de presenca por `data + aluno + turma`.
 
-Permite o controle fisico dos espacos de aula.
+## 7. Criterios de Aceite da Fase de Planejamento
 
-- **Atributos:** Nome da Sala, Capacidade (inteiro).
-- **Acoes:** Cadastrar nova sala, editar dados existentes e excluir salas.
-
-### 3.3 RF03 - Gerenciamento de Professores
-
-Manutencao do corpo docente.
-
-- **Atributos:** Nome, E-mail (unico).
-- **Acoes:** Cadastrar, editar e excluir professores.
-
-### 3.4 RF04 - Gerenciamento de Disciplinas
-
-Catalogo de materias ofertadas.
-
-- **Atributos:** Nome, Codigo Automatico (gerado pelo sistema/DB).
-- **Acoes:** Cadastrar, editar e excluir disciplinas.
-
-### 3.5 RF05 - Gerenciamento de Alocacoes (TimeTables)
-
-Nucleo do sistema, onde ocorre a juncao das entidades.
-
-- **Atributos:** Dia da semana, Horario de Inicio, Horario de Fim, Sala (FK), Professor (FK), Disciplina (FK).
-- **Regras de Negocio:** O sistema deve evitar conflitos de horario para a mesma sala ou para o mesmo professor (validacao via SQLAlchemy/aplicacao).
-
-## 4. Modelo de Dados Sugerido
-
-Para suportar o SQLAlchemy, as tabelas seguirao a seguinte logica de relacionamento:
-
-| Entidade | Chave Primaria | Relacionamentos |
-|---|---|---|
-| User (Admin) | id | - |
-| Sala | id | Has Many Alocacoes |
-| Professor | id | Has Many Alocacoes |
-| Disciplina | id | Has Many Alocacoes |
-| Alocacao | id | Belongs To (Sala, Professor, Disciplina) |
-
-## 5. Requisitos Nao Funcionais
-
-1. **Persistencia:** Todos os dados devem ser persistidos no SQLite.
-2. **Integridade:** Uso de Foreign Keys para garantir que uma alocacao nao aponte para uma sala inexistente.
-3. **Interface:** Design responsivo e intuitivo para o administrador.
+- Requisitos funcionais e nao funcionais descritos de forma clara.
+- Tecnologias justificadas e aderentes ao escopo.
+- Modelo de dados inicial com relacionamentos suficientes para suportar CRUD e regras de negocio.

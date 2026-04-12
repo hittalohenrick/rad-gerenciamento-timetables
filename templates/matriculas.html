@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Alocação de Alunos{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Gestão de Turmas</p>
+      <h1>Alocação de Alunos</h1>
+    </div>
+    <a href="{{ url_for('main.new_matricula') }}" class="btn btn-primary">Nova Alocação</a>
+  </div>
+
+  <div class="surface table-shell">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Aluno</th>
+            <th>Turma</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in matriculas %}
+          <tr>
+            <td>{{ item.aluno.nome }} ({{ item.aluno.matricula }})</td>
+            <td>
+              {{ item.timetable.dia }} | {{ item.timetable.hora_inicio }} - {{ item.timetable.hora_fim }} |
+              {{ item.timetable.disciplina.nome if item.timetable.disciplina else 'Disciplina removida' }} |
+              {{ item.timetable.professor.username if item.timetable.professor else 'Professor removido' }} |
+              {{ item.timetable.sala.nome if item.timetable.sala else 'Sala removida' }}
+            </td>
+            <td class="actions-cell">
+              <form
+                method="POST"
+                action="{{ url_for('main.delete_matricula', id=item.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Tem certeza que deseja remover esta alocacao?');"
+              >
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-danger">Remover</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

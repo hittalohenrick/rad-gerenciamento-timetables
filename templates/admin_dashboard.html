@@ -1,111 +1,126 @@
-{% extends "base.html" %} {% block title %}Dashboard Admin{% endblock %} {%
-block content %}
-<div class="row mb-4">
-  <div class="col-12">
-    <h1 class="mb-4">Dashboard Administrativo</h1>
+{% extends "base.html" %}
+{% block title %}Dashboard Admin{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Gestão Acadêmica</p>
+      <h1>Dashboard Administrativo</h1>
+      <p class="page-lead">Visão geral da operação: estrutura, turmas, docentes e alunos.</p>
+    </div>
   </div>
-</div>
 
-<div class="dashboard-stats mb-4">
-  <div class="stat-card">
-    <h3>{{ salas|length }}</h3>
-    <p>Salas Cadastradas</p>
+  <div class="dashboard-stats">
+    <div class="stat-card"><h3>{{ salas|length }}</h3><p>Salas</p></div>
+    <div class="stat-card"><h3>{{ professores|length }}</h3><p>Professores</p></div>
+    <div class="stat-card"><h3>{{ disciplinas|length }}</h3><p>Disciplinas</p></div>
+    <div class="stat-card"><h3>{{ alunos|length }}</h3><p>Alunos</p></div>
+    <div class="stat-card"><h3>{{ matriculas_count }}</h3><p>Matrículas</p></div>
+    <div class="stat-card"><h3>{{ timetables|length }}</h3><p>Turmas Ativas</p></div>
   </div>
-  <div class="stat-card">
-    <h3>{{ professores|length }}</h3>
-    <p>Professores</p>
-  </div>
-  <div class="stat-card">
-    <h3>{{ disciplinas|length }}</h3>
-    <p>Disciplinas</p>
-  </div>
-  <div class="stat-card">
-    <h3>{{ timetables|length }}</h3>
-    <p>Alocacoes Ativas</p>
-  </div>
-</div>
 
-<div class="row mb-4">
-  <div class="col-md-6 col-lg-4 mb-3">
-    <div class="card h-100">
-      <div class="card-header">Salas</div>
-      <div class="card-body text-center">
-        <p class="card-text">Gerencie as salas disponiveis no sistema.</p>
-        <a href="{{ url_for('main.salas') }}" class="btn btn-primary">Gerenciar Salas</a>
+  <div class="row mb-4">
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card h-100">
+        <div class="card-header">Salas</div>
+        <div class="card-body text-center">
+          <p class="card-text">Gerencie os ambientes de aula e laboratórios.</p>
+          <a href="{{ url_for('main.salas') }}" class="btn btn-primary">Gerenciar Salas</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card h-100">
+        <div class="card-header">Professores</div>
+        <div class="card-body text-center">
+          <p class="card-text">Administre usuários docentes e credenciais.</p>
+          <a href="{{ url_for('main.professores') }}" class="btn btn-primary">Gerenciar Professores</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card h-100">
+        <div class="card-header">Disciplinas</div>
+        <div class="card-body text-center">
+          <p class="card-text">Mantenha a grade de disciplinas atualizada.</p>
+          <a href="{{ url_for('main.disciplinas') }}" class="btn btn-primary">Gerenciar Disciplinas</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card h-100">
+        <div class="card-header">Alunos</div>
+        <div class="card-body text-center">
+          <p class="card-text">Cadastre estudantes e mantenha matrícula ativa.</p>
+          <a href="{{ url_for('main.alunos') }}" class="btn btn-primary">Gerenciar Alunos</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card h-100">
+        <div class="card-header">Alocação de Alunos</div>
+        <div class="card-body text-center">
+          <p class="card-text">Distribua alunos nas turmas disponíveis.</p>
+          <a href="{{ url_for('main.matriculas') }}" class="btn btn-primary">Gerenciar Alocações</a>
+        </div>
       </div>
     </div>
   </div>
-  <div class="col-md-6 col-lg-4 mb-3">
-    <div class="card h-100">
-      <div class="card-header">Professores</div>
-      <div class="card-body text-center">
-        <p class="card-text">Administre os usuarios professores.</p>
-        <a href="{{ url_for('main.professores') }}" class="btn btn-primary">Gerenciar Professores</a>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-6 col-lg-4 mb-3">
-    <div class="card h-100">
-      <div class="card-header">Disciplinas</div>
-      <div class="card-body text-center">
-        <p class="card-text">Cadastre e gerencie as disciplinas.</p>
-        <a href="{{ url_for('main.disciplinas') }}" class="btn btn-primary">Gerenciar Disciplinas</a>
-      </div>
-    </div>
-  </div>
-</div>
 
-<div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <span>Alocacoes de Timetable</span>
-    <a href="{{ url_for('main.new_timetable') }}" class="btn btn-success btn-sm">Nova Alocacao</a>
-  </div>
-  <div class="card-body">
-    {% if timetables %}
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead>
-          <tr>
-            <th>Dia</th>
-            <th>Horario</th>
-            <th>Sala</th>
-            <th>Professor</th>
-            <th>Disciplina</th>
-            <th>Acoes</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in timetables %}
-          <tr>
-            <td>{{ t.dia }}</td>
-            <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
-            <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
-            <td>{{ t.professor.username if t.professor else 'Professor removido' }}</td>
-            <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
-            <td>
-              <a href="{{ url_for('main.edit_timetable', id=t.id) }}" class="btn btn-sm btn-warning">Editar</a>
-              <form
-                method="POST"
-                action="{{ url_for('main.delete_timetable', id=t.id) }}"
-                class="d-inline"
-                onsubmit="return confirm('Tem certeza que deseja deletar esta alocacao?');"
-              >
-                {{ delete_form.hidden_tag() }}
-                <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>Alocações de Timetable</span>
+      <a href="{{ url_for('main.new_timetable') }}" class="btn btn-success btn-sm">Nova Alocação</a>
     </div>
-    {% else %}
-    <div class="text-center py-4">
-      <h5 class="text-muted">Nenhuma alocacao cadastrada</h5>
-      <p class="text-muted">Comece criando uma nova alocacao de timetable.</p>
-      <a href="{{ url_for('main.new_timetable') }}" class="btn btn-primary">Criar Primeira Alocacao</a>
+    <div class="card-body">
+      {% if timetables %}
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Dia</th>
+                <th>Horário</th>
+                <th>Sala</th>
+                <th>Professor</th>
+                <th>Disciplina</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in timetables %}
+              <tr>
+                <td>{{ t.dia }}</td>
+                <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
+                <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
+                <td>{{ t.professor.username if t.professor else 'Professor removido' }}</td>
+                <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
+                <td class="actions-cell">
+                  <a href="{{ url_for('main.edit_timetable', id=t.id) }}" class="btn btn-sm btn-edit">Editar</a>
+                  <form
+                    method="POST"
+                    action="{{ url_for('main.delete_timetable', id=t.id) }}"
+                    class="d-inline"
+                    onsubmit="return confirm('Tem certeza que deseja deletar esta alocacao?');"
+                  >
+                    {{ delete_form.hidden_tag() }}
+                    <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <h5>Nenhuma alocação cadastrada</h5>
+        <p>Comece criando uma nova alocação de timetable.</p>
+        <a href="{{ url_for('main.new_timetable') }}" class="btn btn-primary">Criar Primeira Alocação</a>
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
-</div>
+</section>
 {% endblock %}

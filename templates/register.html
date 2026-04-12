@@ -4,24 +4,31 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<h1>{{ title }}</h1>
-<form method="POST" novalidate>
-  {{ form.hidden_tag() }}
-  {{ render_field(form.username) }}
-  {{ render_field(form.email) }}
+<section class="surface form-shell stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Cadastro</p>
+      <h1>{{ title }}</h1>
+    </div>
+  </div>
+  <form method="POST" novalidate>
+    {{ form.hidden_tag() }}
+    {{ render_field(form.username) }}
+    {{ render_field(form.email) }}
 
-  {% if form.password is defined %}
-  {{ render_field(form.password) }}
-  {% endif %}
+    {% if form.password is defined %}
+    {{ render_field(form.password) }}
+    {% endif %}
 
-  {% if form.password2 is defined %}
-  {{ render_field(form.password2) }}
-  {% endif %}
+    {% if form.password2 is defined %}
+    {{ render_field(form.password2) }}
+    {% endif %}
 
-  {% if form.role is defined and form.role.choices|length > 1 %}
-  {{ render_field(form.role) }}
-  {% endif %}
+    {% if form.role is defined and form.role.choices|length > 1 %}
+    {{ render_field(form.role) }}
+    {% endif %}
 
-  {{ form.submit(class="btn btn-primary") }}
-</form>
+    {{ form.submit(class="btn btn-primary") }}
+  </form>
+</section>
 {% endblock %}

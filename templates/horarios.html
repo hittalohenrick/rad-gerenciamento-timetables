@@ -1,40 +1,53 @@
-{% extends "base.html" %} {% block title %}Horarios{% endblock %} {% block
-content %}
-<h1>Horarios</h1>
-<a href="{{ url_for('main.new_timetable') }}" class="btn btn-primary">Nova Alocacao</a>
-<table class="table mt-3">
-  <thead>
-    <tr>
-      <th>Dia</th>
-      <th>Horario</th>
-      <th>Sala</th>
-      <th>Professor</th>
-      <th>Disciplina</th>
-      <th>Acoes</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for t in timetables %}
-    <tr>
-      <td>{{ t.dia }}</td>
-      <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
-      <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
-      <td>{{ t.professor.username if t.professor else 'Professor removido' }}</td>
-      <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
-      <td>
-        <a href="{{ url_for('main.edit_timetable', id=t.id) }}" class="btn btn-sm btn-warning">Editar</a>
-        <form
-          method="POST"
-          action="{{ url_for('main.delete_timetable', id=t.id) }}"
-          class="d-inline"
-          onsubmit="return confirm('Tem certeza?');"
-        >
-          {{ delete_form.hidden_tag() }}
-          <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% extends "base.html" %}
+{% block title %}Horários{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Oferta Acadêmica</p>
+      <h1>Horários</h1>
+    </div>
+    <a href="{{ url_for('main.new_timetable') }}" class="btn btn-primary">Nova Alocação</a>
+  </div>
+
+  <div class="surface table-shell">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Dia</th>
+            <th>Horário</th>
+            <th>Sala</th>
+            <th>Professor</th>
+            <th>Disciplina</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in timetables %}
+          <tr>
+            <td>{{ t.dia }}</td>
+            <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
+            <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
+            <td>{{ t.professor.username if t.professor else 'Professor removido' }}</td>
+            <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
+            <td class="actions-cell">
+              <a href="{{ url_for('main.edit_timetable', id=t.id) }}" class="btn btn-sm btn-edit">Editar</a>
+              <form
+                method="POST"
+                action="{{ url_for('main.delete_timetable', id=t.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Tem certeza?');"
+              >
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 {% endblock %}

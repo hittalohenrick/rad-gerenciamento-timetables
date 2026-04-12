@@ -4,21 +4,28 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<h1>{{ title }}</h1>
-<form method="POST" novalidate>
-  {{ form.hidden_tag() }}
-  {{ render_field(form.dia) }}
+<section class="surface form-shell stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Oferta de Turmas</p>
+      <h1>{{ title }}</h1>
+    </div>
+  </div>
+  <form method="POST" novalidate>
+    {{ form.hidden_tag() }}
+    {{ render_field(form.dia) }}
 
-  {{ render_field(form.hora_inicio) }}
-  <div class="form-text mb-3">Digite no formato 24h (HH:MM), ex: 20:00.</div>
+    {{ render_field(form.hora_inicio) }}
+    <div class="form-text mb-3">Formato 24h (HH:MM), ex: 19:00.</div>
 
-  {{ render_field(form.hora_fim) }}
-  <div class="form-text mb-3">Digite no formato 24h (HH:MM), ex: 21:30.</div>
+    {{ render_field(form.hora_fim) }}
+    <div class="form-text mb-3">Formato 24h (HH:MM), ex: 20:40.</div>
 
-  {{ render_field(form.sala_id) }}
-  {{ render_field(form.professor_id) }}
-  {{ render_field(form.disciplina_id) }}
+    {{ render_field(form.sala_id) }}
+    {{ render_field(form.professor_id) }}
+    {{ render_field(form.disciplina_id) }}
 
-  {{ form.submit(class="btn btn-primary") }}
-</form>
+    {{ form.submit(class="btn btn-primary") }}
+  </form>
+</section>
 {% endblock %}

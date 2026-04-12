@@ -4,10 +4,17 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<h1>{{ title }}</h1>
-<form method="POST" novalidate>
-  {{ form.hidden_tag() }}
-  {{ render_field(form.nome) }}
-  {{ form.submit(class="btn btn-primary") }}
-</form>
+<section class="surface form-shell stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Grade Curricular</p>
+      <h1>{{ title }}</h1>
+    </div>
+  </div>
+  <form method="POST" novalidate>
+    {{ form.hidden_tag() }}
+    {{ render_field(form.nome) }}
+    {{ form.submit(class="btn btn-primary") }}
+  </form>
+</section>
 {% endblock %}

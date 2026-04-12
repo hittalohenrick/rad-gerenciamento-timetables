@@ -1,40 +1,56 @@
-{% extends "base.html" %} {% block title %}Professores{% endblock %} {% block
-content %}
-<h1>Professores</h1>
-<a href="{{ url_for('main.new_professor') }}" class="btn btn-primary"
-  >Novo Professor</a
->
-<table class="table mt-3">
-  <thead>
-    <tr>
-      <th>Nome</th>
-      <th>Email</th>
-      <th>Ações</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for professor in professores %}
-    <tr>
-      <td>{{ professor.username }}</td>
-      <td>{{ professor.email }}</td>
-      <td>
-        <a
-          href="{{ url_for('main.edit_professor', id=professor.id) }}"
-          class="btn btn-sm btn-warning"
-          >Editar</a
-        >
-        <form
-          method="POST"
-          action="{{ url_for('main.delete_professor', id=professor.id) }}"
-          class="d-inline"
-          onsubmit="return confirm('Tem certeza que deseja deletar este professor?');"
-        >
-          {{ delete_form.hidden_tag() }}
-          <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% extends "base.html" %}
+{% block title %}Professores{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Corpo Docente</p>
+      <h1>Professores</h1>
+    </div>
+    <a href="{{ url_for('main.new_professor') }}" class="btn btn-primary">Novo Professor</a>
+  </div>
+
+  <div class="surface table-shell">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Login</th>
+            <th>Email</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for professor in professores %}
+          <tr>
+            <td>{{ professor.username }}</td>
+            <td>{{ professor.email }}</td>
+            <td class="actions-cell">
+              <a href="{{ url_for('main.edit_professor', id=professor.id) }}" class="btn btn-sm btn-edit">Editar</a>
+              <form
+                method="POST"
+                action="{{ url_for('main.reset_professor_password', id=professor.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Resetar senha deste professor?');"
+              >
+                {{ reset_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-secondary">Resetar Senha</button>
+              </form>
+              <form
+                method="POST"
+                action="{{ url_for('main.delete_professor', id=professor.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Tem certeza que deseja deletar este professor?');"
+              >
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 {% endblock %}

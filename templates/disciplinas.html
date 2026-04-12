@@ -1,40 +1,47 @@
-{% extends "base.html" %} {% block title %}Disciplinas{% endblock %} {% block
-content %}
-<h1>Disciplinas</h1>
-<a href="{{ url_for('main.new_disciplina') }}" class="btn btn-primary"
-  >Nova Disciplina</a
->
-<table class="table mt-3">
-  <thead>
-    <tr>
-      <th>Nome</th>
-      <th>Código</th>
-      <th>Ações</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for disciplina in disciplinas %}
-    <tr>
-      <td>{{ disciplina.nome }}</td>
-      <td>{{ disciplina.codigo }}</td>
-      <td>
-        <a
-          href="{{ url_for('main.edit_disciplina', id=disciplina.id) }}"
-          class="btn btn-sm btn-warning"
-          >Editar</a
-        >
-        <form
-          method="POST"
-          action="{{ url_for('main.delete_disciplina', id=disciplina.id) }}"
-          class="d-inline"
-          onsubmit="return confirm('Tem certeza que deseja deletar esta disciplina?');"
-        >
-          {{ delete_form.hidden_tag() }}
-          <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% extends "base.html" %}
+{% block title %}Disciplinas{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Matriz Curricular</p>
+      <h1>Disciplinas</h1>
+    </div>
+    <a href="{{ url_for('main.new_disciplina') }}" class="btn btn-primary">Nova Disciplina</a>
+  </div>
+
+  <div class="surface table-shell">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Código</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for disciplina in disciplinas %}
+          <tr>
+            <td>{{ disciplina.nome }}</td>
+            <td>{{ disciplina.codigo }}</td>
+            <td class="actions-cell">
+              <a href="{{ url_for('main.edit_disciplina', id=disciplina.id) }}" class="btn btn-sm btn-edit">Editar</a>
+              <form
+                method="POST"
+                action="{{ url_for('main.delete_disciplina', id=disciplina.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Tem certeza que deseja deletar esta disciplina?');"
+              >
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 {% endblock %}

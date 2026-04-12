@@ -1,180 +1,39 @@
-import random
-import string
-
-from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import current_user, login_required, login_user, logout_user
-from sqlalchemy import func
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import login_required
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app import db
 from app.forms import (
+    AlunoForm,
     DeleteForm,
     DisciplinaForm,
-    LoginForm,
+    MatriculaForm,
+    ResetPasswordForm,
+    ProfessorEditForm,
     ProfessorForm,
-    RegistrationForm,
     SalaForm,
     TimetableForm,
     parse_time,
 )
-from app.models import Disciplina, Sala, Timetable, User
+from app.models import Aluno, Disciplina, Matricula, Presenca, Sala, Timetable, User
 
-bp = Blueprint("main", __name__)
-
-
-def times_overlap(start1, end1, start2, end2):
-    """Verifica se dois intervalos de tempo se sobrepoem."""
-    return max(start1, start2) < min(end1, end2)
-
-
-def admin_required_redirect():
-    if current_user.is_admin():
-        return None
-    logout_user()
-    flash("Acesso negado.", "danger")
-    return redirect(url_for("main.login"))
-
-
-def normalize_text(value):
-    return (value or "").strip()
-
-
-def generate_disciplina_code():
-    while True:
-        codigo = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        if not Disciplina.query.filter_by(codigo=codigo).first():
-            return codigo
-
-
-def find_timetable_conflict(dia, hora_inicio, hora_fim, sala_id, professor_id, exclude_id=None):
-    overlapping_query = Timetable.query.filter(
-        Timetable.dia == dia,
-        Timetable.hora_inicio < hora_fim,
-        Timetable.hora_fim > hora_inicio,
-    )
-
-    if exclude_id is not None:
-        overlapping_query = overlapping_query.filter(Timetable.id != exclude_id)
-
-    room_conflict = overlapping_query.filter(Timetable.sala_id == sala_id).first()
-    if room_conflict:
-        return "Conflito: a sala ja possui alocacao em horario sobreposto."
-
-    professor_conflict = overlapping_query.filter(Timetable.professor_id == professor_id).first()
-    if professor_conflict:
-        return "Conflito: professor ja alocado em horario sobreposto."
-
-    return None
-
-
-def username_or_email_exists(username, email, exclude_user_id=None):
-    query = User.query
-    if exclude_user_id is not None:
-        query = query.filter(User.id != exclude_user_id)
-
-    existing_username = query.filter(func.lower(User.username) == username.lower()).first()
-    if existing_username:
-        return "Ja existe usuario com este nome."
-
-    existing_email = query.filter(func.lower(User.email) == email.lower()).first()
-    if existing_email:
-        return "Ja existe usuario com este email."
-
-    return None
-
-
-def sala_name_exists(nome, exclude_sala_id=None):
-    query = Sala.query
-    if exclude_sala_id is not None:
-        query = query.filter(Sala.id != exclude_sala_id)
-
-    existing_sala = query.filter(func.lower(Sala.nome) == nome.lower()).first()
-    return existing_sala is not None
-
-
-def disciplina_name_exists(nome, exclude_disciplina_id=None):
-    query = Disciplina.query
-    if exclude_disciplina_id is not None:
-        query = query.filter(Disciplina.id != exclude_disciplina_id)
-
-    existing_disciplina = query.filter(func.lower(Disciplina.nome) == nome.lower()).first()
-    return existing_disciplina is not None
-
-
-@bp.route("/")
-@login_required
-def index():
-    if not current_user.is_admin():
-        logout_user()
-        flash("Apenas o admin pode acessar este sistema.", "danger")
-        return redirect(url_for("main.login"))
-    return redirect(url_for("main.admin_dashboard"))
-
-
-@bp.route("/login", methods=["GET", "POST"])
-def login():
-    if current_user.is_authenticated:
-        return redirect(url_for("main.index"))
-
-    form = LoginForm()
-    if form.validate_on_submit():
-        username = normalize_text(form.username.data)
-        user = User.query.filter(func.lower(User.username) == username.lower()).first()
-
-        if user is None or not user.check_password(form.password.data):
-            flash("Usuario ou senha invalidos.", "danger")
-            return redirect(url_for("main.login"))
-
-        if not user.is_admin():
-            flash("Apenas o admin pode fazer login neste sistema.", "danger")
-            return redirect(url_for("main.login"))
-
-        login_user(user)
-        return redirect(url_for("main.index"))
-
-    return render_template("login.html", title="Login", form=form)
-
-
-@bp.route("/logout")
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for("main.login"))
-
-
-@bp.route("/register", methods=["GET", "POST"])
-@login_required
-def register():
-    guard = admin_required_redirect()
-    if guard:
-        return guard
-
-    form = RegistrationForm()
-    if form.validate_on_submit():
-        username = normalize_text(form.username.data)
-        email = normalize_text(form.email.data)
-
-        duplicate_error = username_or_email_exists(username, email)
-        if duplicate_error:
-            flash(duplicate_error, "warning")
-            return render_template("register.html", title="Registrar Usuario", form=form)
-
-        user = User(username=username, email=email, role="professor")
-        user.set_password(form.password.data)
-
-        db.session.add(user)
-        try:
-            db.session.commit()
-        except IntegrityError:
-            db.session.rollback()
-            flash("Nao foi possivel registrar o usuario por conflito de dados.", "danger")
-            return render_template("register.html", title="Registrar Usuario", form=form)
-
-        flash("Usuario registrado com sucesso.", "success")
-        return redirect(url_for("main.admin_dashboard"))
-
-    return render_template("register.html", title="Registrar Usuario", form=form)
+from . import bp
+from .helpers import (
+    admin_required_redirect,
+    aluno_has_schedule_conflict,
+    aluno_matricula_exists,
+    aluno_turma_exists,
+    disciplina_name_exists,
+    find_timetable_conflict,
+    generate_disciplina_code,
+    generate_temporary_password,
+    load_timetable_options,
+    normalize_text,
+    sala_name_exists,
+    timetable_capacity_reached,
+    username_or_email_exists,
+)
 
 
 @bp.route("/admin")
@@ -187,6 +46,7 @@ def admin_dashboard():
     salas = Sala.query.order_by(Sala.nome.asc()).all()
     professores = User.query.filter_by(role="professor").order_by(User.username.asc()).all()
     disciplinas = Disciplina.query.order_by(Disciplina.nome.asc()).all()
+    alunos = Aluno.query.order_by(Aluno.nome.asc()).all()
     timetables = (
         Timetable.query.options(
             joinedload(Timetable.sala),
@@ -204,7 +64,9 @@ def admin_dashboard():
         salas=salas,
         professores=professores,
         disciplinas=disciplinas,
+        alunos=alunos,
         timetables=timetables,
+        matriculas_count=Matricula.query.count(),
         delete_form=delete_form,
     )
 
@@ -227,15 +89,6 @@ def horarios():
     )
     delete_form = DeleteForm()
     return render_template("horarios.html", timetables=timetables, delete_form=delete_form)
-
-
-@bp.route("/professor")
-@login_required
-def professor_dashboard():
-    guard = admin_required_redirect()
-    if guard:
-        return guard
-    return redirect(url_for("main.admin_dashboard"))
 
 
 # CRUD Salas
@@ -466,7 +319,13 @@ def professores():
 
     professores = User.query.filter_by(role="professor").order_by(User.username.asc()).all()
     delete_form = DeleteForm()
-    return render_template("professores.html", professores=professores, delete_form=delete_form)
+    reset_form = ResetPasswordForm()
+    return render_template(
+        "professores.html",
+        professores=professores,
+        delete_form=delete_form,
+        reset_form=reset_form,
+    )
 
 
 @bp.route("/professor/new", methods=["GET", "POST"])
@@ -486,8 +345,8 @@ def new_professor():
             flash(duplicate_error, "warning")
             return render_template("register.html", title="Novo Professor", form=form)
 
-        user = User(username=username, email=email, role="professor")
-        user.set_password("professor123")
+        user = User(username=username, email=email, role="professor", must_change_password=True)
+        user.set_password(form.password.data)
         db.session.add(user)
 
         try:
@@ -497,7 +356,7 @@ def new_professor():
             flash("Nao foi possivel registrar o professor.", "danger")
             return render_template("register.html", title="Novo Professor", form=form)
 
-        flash("Professor registrado com sucesso (senha padrao: professor123).", "success")
+        flash("Professor registrado com sucesso.", "success")
         return redirect(url_for("main.professores"))
 
     return render_template("register.html", title="Novo Professor", form=form)
@@ -515,7 +374,7 @@ def edit_professor(id):
         flash("Usuario selecionado nao e professor.", "warning")
         return redirect(url_for("main.professores"))
 
-    form = ProfessorForm()
+    form = ProfessorEditForm()
     if form.validate_on_submit():
         username = normalize_text(form.username.data)
         email = normalize_text(form.email.data)
@@ -527,6 +386,10 @@ def edit_professor(id):
 
         professor.username = username
         professor.email = email
+
+        if form.password.data:
+            professor.set_password(form.password.data)
+            professor.must_change_password = True
 
         try:
             db.session.commit()
@@ -580,6 +443,264 @@ def delete_professor(id):
     return redirect(url_for("main.professores"))
 
 
+@bp.route("/professor/reset-password/<int:id>", methods=["POST"])
+@login_required
+def reset_professor_password(id):
+    guard = admin_required_redirect()
+    if guard:
+        return guard
+
+    form = ResetPasswordForm()
+    if not form.validate_on_submit():
+        flash("Requisicao invalida.", "danger")
+        return redirect(url_for("main.professores"))
+
+    professor = db.get_or_404(User, id)
+    if professor.role != "professor":
+        flash("Usuario selecionado nao e professor.", "warning")
+        return redirect(url_for("main.professores"))
+
+    temporary_password = generate_temporary_password()
+    professor.set_password(temporary_password)
+    professor.must_change_password = True
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Nao foi possivel resetar a senha do professor.", "danger")
+        return redirect(url_for("main.professores"))
+
+    flash(
+        f"Senha temporaria de {professor.username}: {temporary_password} (troca obrigatoria no proximo login).",
+        "warning",
+    )
+    return redirect(url_for("main.professores"))
+
+
+# CRUD Alunos
+@bp.route("/alunos")
+@login_required
+def alunos():
+    guard = admin_required_redirect()
+    if guard:
+        return guard
+
+    alunos = Aluno.query.order_by(Aluno.nome.asc()).all()
+    delete_form = DeleteForm()
+    return render_template("alunos.html", alunos=alunos, delete_form=delete_form)
+
+
+@bp.route("/aluno/new", methods=["GET", "POST"])
+@login_required
+def new_aluno():
+    guard = admin_required_redirect()
+    if guard:
+        return guard
+
+    form = AlunoForm()
+    if form.validate_on_submit():
+        nome = normalize_text(form.nome.data)
+        matricula = normalize_text(form.matricula.data)
+
+        if aluno_matricula_exists(matricula):
+            flash("Ja existe aluno com esta matricula.", "warning")
+            return render_template("aluno_form.html", form=form, title="Novo Aluno")
+
+        aluno = Aluno(nome=nome, matricula=matricula)
+        db.session.add(aluno)
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Nao foi possivel cadastrar o aluno.", "danger")
+            return render_template("aluno_form.html", form=form, title="Novo Aluno")
+
+        flash("Aluno cadastrado com sucesso.", "success")
+        return redirect(url_for("main.alunos"))
+
+    return render_template("aluno_form.html", form=form, title="Novo Aluno")
+
+
+@bp.route("/aluno/edit/<int:id>", methods=["GET", "POST"])
+@login_required
+def edit_aluno(id):
+    guard = admin_required_redirect()
+    if guard:
+        return guard
+
+    aluno = db.get_or_404(Aluno, id)
+    form = AlunoForm()
+
+    if form.validate_on_submit():
+        nome = normalize_text(form.nome.data)
+        matricula = normalize_text(form.matricula.data)
+
+        if aluno_matricula_exists(matricula, exclude_aluno_id=aluno.id):
+            flash("Ja existe aluno com esta matricula.", "warning")
+            return render_template("aluno_form.html", form=form, title="Editar Aluno")
+
+        aluno.nome = nome
+        aluno.matricula = matricula
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Nao foi possivel editar o aluno.", "danger")
+            return render_template("aluno_form.html", form=form, title="Editar Aluno")
+
+        flash("Aluno editado com sucesso.", "success")
+        return redirect(url_for("main.alunos"))
+
+    if request.method == "GET":
+        form.nome.data = aluno.nome
+        form.matricula.data = aluno.matricula
+
+    return render_template("aluno_form.html", form=form, title="Editar Aluno")
+
+
+@bp.route("/aluno/delete/<int:id>", methods=["POST"])
+@login_required
+def delete_aluno(id):
+    guard = admin_required_redirect()
+    if guard:
+        return guard
+
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash("Requisicao invalida.", "danger")
+        return redirect(url_for("main.alunos"))
+
+    aluno = db.get_or_404(Aluno, id)
+
+    related_matriculas = Matricula.query.filter_by(aluno_id=aluno.id).count()
+    if related_matriculas > 0:
+        flash("Nao e possivel deletar aluno com turmas alocadas.", "warning")
+        return redirect(url_for("main.alunos"))
+
+    related_presencas = Presenca.query.filter_by(aluno_id=aluno.id).count()
+    if related_presencas > 0:
+        flash("Nao e possivel deletar aluno com chamadas registradas.", "warning")
+        return redirect(url_for("main.alunos"))
+
+    db.session.delete(aluno)
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Nao foi possivel deletar o aluno.", "danger")
+        return redirect(url_for("main.alunos"))
+
+    flash("Aluno deletado com sucesso.", "success")
+    return redirect(url_for("main.alunos"))
+
+
+# Alocacao de alunos em turmas
+@bp.route("/matriculas")
+@login_required
+def matriculas():
+    guard = admin_required_redirect()
+    if guard:
+        return guard
+
+    matriculas = (
+        Matricula.query.options(
+            joinedload(Matricula.aluno),
+            joinedload(Matricula.timetable).joinedload(Timetable.sala),
+            joinedload(Matricula.timetable).joinedload(Timetable.professor),
+            joinedload(Matricula.timetable).joinedload(Timetable.disciplina),
+        )
+        .join(Matricula.aluno)
+        .order_by(Aluno.nome.asc())
+        .all()
+    )
+
+    delete_form = DeleteForm()
+    return render_template("matriculas.html", matriculas=matriculas, delete_form=delete_form)
+
+
+@bp.route("/matricula/new", methods=["GET", "POST"])
+@login_required
+def new_matricula():
+    guard = admin_required_redirect()
+    if guard:
+        return guard
+
+    form = MatriculaForm()
+    form.aluno_id.choices = [(a.id, f"{a.nome} ({a.matricula})") for a in Aluno.query.order_by(Aluno.nome.asc()).all()]
+    form.timetable_id.choices = load_timetable_options()
+
+    if form.validate_on_submit():
+        if not form.aluno_id.choices or not form.timetable_id.choices:
+            flash("Cadastre ao menos um aluno e uma turma antes de alocar.", "warning")
+            return redirect(url_for("main.matriculas"))
+
+        if aluno_turma_exists(form.aluno_id.data, form.timetable_id.data):
+            flash("Este aluno ja esta alocado nesta turma.", "warning")
+            return render_template("matricula_form.html", title="Nova Alocacao de Aluno", form=form)
+
+        if timetable_capacity_reached(form.timetable_id.data):
+            flash("Nao foi possivel alocar: capacidade da sala ja foi atingida.", "warning")
+            return render_template("matricula_form.html", title="Nova Alocacao de Aluno", form=form)
+
+        if aluno_has_schedule_conflict(form.aluno_id.data, form.timetable_id.data):
+            flash("Nao foi possivel alocar: conflito de horario para este aluno.", "warning")
+            return render_template("matricula_form.html", title="Nova Alocacao de Aluno", form=form)
+
+        matricula = Matricula(aluno_id=form.aluno_id.data, timetable_id=form.timetable_id.data)
+        db.session.add(matricula)
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Nao foi possivel criar a alocacao do aluno.", "danger")
+            return render_template("matricula_form.html", title="Nova Alocacao de Aluno", form=form)
+
+        flash("Aluno alocado com sucesso.", "success")
+        return redirect(url_for("main.matriculas"))
+
+    return render_template("matricula_form.html", title="Nova Alocacao de Aluno", form=form)
+
+
+@bp.route("/matricula/delete/<int:id>", methods=["POST"])
+@login_required
+def delete_matricula(id):
+    guard = admin_required_redirect()
+    if guard:
+        return guard
+
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash("Requisicao invalida.", "danger")
+        return redirect(url_for("main.matriculas"))
+
+    matricula = db.get_or_404(Matricula, id)
+
+    has_presencas = Presenca.query.filter_by(
+        aluno_id=matricula.aluno_id,
+        timetable_id=matricula.timetable_id,
+    ).count()
+    if has_presencas > 0:
+        flash("Nao e possivel remover alocacao com chamadas registradas.", "warning")
+        return redirect(url_for("main.matriculas"))
+
+    db.session.delete(matricula)
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Nao foi possivel remover a alocacao.", "danger")
+        return redirect(url_for("main.matriculas"))
+
+    flash("Alocacao removida com sucesso.", "success")
+    return redirect(url_for("main.matriculas"))
+
+
 @bp.route("/timetable/new", methods=["GET", "POST"])
 @login_required
 def new_timetable():
@@ -592,9 +713,7 @@ def new_timetable():
     form.professor_id.choices = [
         (p.id, p.username) for p in User.query.filter_by(role="professor").order_by(User.username.asc()).all()
     ]
-    form.disciplina_id.choices = [
-        (d.id, d.nome) for d in Disciplina.query.order_by(Disciplina.nome.asc()).all()
-    ]
+    form.disciplina_id.choices = [(d.id, d.nome) for d in Disciplina.query.order_by(Disciplina.nome.asc()).all()]
 
     if form.validate_on_submit():
         if not form.sala_id.choices or not form.professor_id.choices or not form.disciplina_id.choices:
@@ -654,9 +773,7 @@ def edit_timetable(id):
     form.professor_id.choices = [
         (p.id, p.username) for p in User.query.filter_by(role="professor").order_by(User.username.asc()).all()
     ]
-    form.disciplina_id.choices = [
-        (d.id, d.nome) for d in Disciplina.query.order_by(Disciplina.nome.asc()).all()
-    ]
+    form.disciplina_id.choices = [(d.id, d.nome) for d in Disciplina.query.order_by(Disciplina.nome.asc()).all()]
 
     if form.validate_on_submit():
         hora_inicio = parse_time(form.hora_inicio.data)
@@ -715,6 +832,17 @@ def delete_timetable(id):
         return redirect(url_for("main.admin_dashboard"))
 
     timetable = db.get_or_404(Timetable, id)
+
+    related_matriculas = Matricula.query.filter_by(timetable_id=timetable.id).count()
+    if related_matriculas > 0:
+        flash("Nao e possivel deletar a turma com alunos alocados.", "warning")
+        return redirect(url_for("main.admin_dashboard"))
+
+    related_presencas = Presenca.query.filter_by(timetable_id=timetable.id).count()
+    if related_presencas > 0:
+        flash("Nao e possivel deletar a turma com chamadas registradas.", "warning")
+        return redirect(url_for("main.admin_dashboard"))
+
     db.session.delete(timetable)
 
     try:

@@ -1,6 +1,13 @@
+from datetime import UTC, datetime
+
 from app import db, login_manager
 from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
+
+
+def utc_now():
+    return datetime.now(UTC)
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -12,9 +19,12 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
     role = db.Column(db.String(20), default='professor')  # 'admin' or 'professor'
+    must_change_password = db.Column(db.Boolean, nullable=False, default=False)
+    password_changed_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
+        self.password_changed_at = utc_now()
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -48,4 +58,53 @@ class Timetable(db.Model):
     __table_args__ = (
         db.UniqueConstraint('dia', 'hora_inicio', 'hora_fim', 'sala_id', name='unique_dia_horario_sala'),
         db.UniqueConstraint('dia', 'hora_inicio', 'hora_fim', 'professor_id', name='unique_dia_horario_professor'),
+    )
+
+
+class Aluno(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(120), nullable=False)
+    matricula = db.Column(db.String(30), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class Matricula(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    aluno_id = db.Column(db.Integer, db.ForeignKey('aluno.id'), nullable=False)
+    timetable_id = db.Column(db.Integer, db.ForeignKey('timetable.id'), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+
+    aluno = db.relationship(
+        'Aluno',
+        backref=db.backref('matriculas', cascade='all, delete-orphan'),
+    )
+    timetable = db.relationship(
+        'Timetable',
+        backref=db.backref('matriculas', cascade='all, delete-orphan'),
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint('aluno_id', 'timetable_id', name='unique_aluno_turma'),
+    )
+
+
+class Presenca(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    data = db.Column(db.Date, nullable=False)
+    presente = db.Column(db.Boolean, nullable=False, default=False)
+    aluno_id = db.Column(db.Integer, db.ForeignKey('aluno.id'), nullable=False)
+    timetable_id = db.Column(db.Integer, db.ForeignKey('timetable.id'), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+
+    aluno = db.relationship(
+        'Aluno',
+        backref=db.backref('presencas', cascade='all, delete-orphan'),
+    )
+    timetable = db.relationship(
+        'Timetable',
+        backref=db.backref('presencas', cascade='all, delete-orphan'),
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint('data', 'aluno_id', 'timetable_id', name='unique_presenca_data_aluno_turma'),
     )

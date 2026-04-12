@@ -1,63 +1,79 @@
-{% extends "base.html" %} {% block title %}Meus Horarios{% endblock %} {% block
-content %}
-<div class="row mb-4">
-  <div class="col-12">
-    <h1 class="mb-4">Meus Horarios de Aula</h1>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-header">Alocacoes Atuais</div>
-  <div class="card-body">
-    {% if timetables %}
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead>
-          <tr>
-            <th>Dia</th>
-            <th>Horario</th>
-            <th>Sala</th>
-            <th>Disciplina</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in timetables %}
-          <tr>
-            <td><strong>{{ t.dia }}</strong></td>
-            <td><span class="badge bg-primary">{{ t.hora_inicio }} - {{ t.hora_fim }}</span></td>
-            <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
-            <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+{% extends "base.html" %}
+{% block title %}Minhas Turmas{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Área do Professor</p>
+      <h1>Minhas Turmas</h1>
+      <p class="page-lead">Acompanhe seus horários e registre presença das turmas.</p>
     </div>
-    {% else %}
-    <div class="text-center py-4">
-      <h5 class="text-muted">Nenhum horario alocado</h5>
-      <p class="text-muted">Voce ainda nao possui alocacoes de aula. Entre em contato com o administrador.</p>
-    </div>
-    {% endif %}
   </div>
-</div>
 
-{% if timetables %}
-<div class="row mt-4">
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-body text-center">
-        <h5 class="card-title">Total de Alocacoes</h5>
-        <h2 class="text-primary">{{ timetables|length }}</h2>
+  <div class="card">
+    <div class="card-header">Alocações Atuais</div>
+    <div class="card-body">
+      {% if timetables %}
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Dia</th>
+                <th>Horário</th>
+                <th>Sala</th>
+                <th>Disciplina</th>
+                <th>Alunos</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in timetables %}
+              <tr>
+                <td><strong>{{ t.dia }}</strong></td>
+                <td><span class="badge bg-primary">{{ t.hora_inicio }} - {{ t.hora_fim }}</span></td>
+                <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
+                <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
+                <td>{{ t.matriculas|length }}</td>
+                <td class="actions-cell">
+                  <a href="{{ url_for('main.professor_attendance', timetable_id=t.id) }}" class="btn btn-sm btn-success">
+                    Fazer Chamada
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <h5>Nenhum horário alocado</h5>
+        <p>Você ainda não possui turmas atribuídas. Fale com o administrador.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if timetables %}
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body text-center">
+          <h5 class="card-title">Total de Turmas</h5>
+          <h2 class="text-primary">{{ timetables|length }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body text-center">
+          <h5 class="card-title">Disciplinas Diferentes</h5>
+          <h2 class="text-success">{{ timetables|map(attribute='disciplina')|select|unique|list|length }}</h2>
+        </div>
       </div>
     </div>
   </div>
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-body text-center">
-        <h5 class="card-title">Disciplinas Diferentes</h5>
-        <h2 class="text-success">{{ timetables|map(attribute='disciplina')|select|unique|list|length }}</h2>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %} {% endblock %}
+  {% endif %}
+</section>
+{% endblock %}

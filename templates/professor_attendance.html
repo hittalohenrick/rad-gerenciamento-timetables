@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% block title %}Chamada{% endblock %}
+
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Registro de Presenca</p>
+      <h1>Chamada da Turma</h1>
+      <p class="page-lead">
+        {{ timetable.dia }} | {{ timetable.hora_inicio }} - {{ timetable.hora_fim }} | {{ timetable.sala.nome if timetable.sala else 'Sala removida' }}
+      </p>
+      <p class="page-lead">Disciplina: {{ timetable.disciplina.nome if timetable.disciplina else 'Disciplina removida' }}</p>
+    </div>
+  </div>
+
+  <div class="dashboard-stats">
+    <div class="stat-card">
+      <h3 id="summary-total">{{ total_alunos }}</h3>
+      <p>Alunos na turma</p>
+    </div>
+    <div class="stat-card">
+      <h3 id="summary-present">{{ total_presentes }}</h3>
+      <p>Presentes no dia</p>
+    </div>
+    <div class="stat-card">
+      <h3 id="summary-absent">{{ total_faltas }}</h3>
+      <p>Faltas no dia</p>
+    </div>
+    <div class="stat-card">
+      <h3 id="summary-percent">{{ percentual_presenca }}%</h3>
+      <p>Percentual de presenca</p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+        {{ render_field(form.chamada_data) }}
+        <p class="form-text">Use datas no mesmo dia da turma ({{ expected_day_label }}). Datas futuras nao sao permitidas.</p>
+
+        <div class="action-row attendance-toolbar">
+          <input
+            id="attendance-search"
+            type="text"
+            class="form-control"
+            placeholder="Filtrar por nome ou matricula"
+            aria-label="Filtrar alunos"
+          />
+          <button type="button" id="mark-visible-present" class="btn btn-outline-secondary">Marcar visiveis</button>
+          <button type="button" id="clear-visible-present" class="btn btn-outline-secondary">Limpar visiveis</button>
+        </div>
+
+        <div class="table-shell">
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle" id="attendance-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Aluno</th>
+                  <th>Matricula</th>
+                  <th class="text-center">Presente</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in matriculas %}
+                <tr class="attendance-row" data-search="{{ (item.aluno.nome ~ ' ' ~ item.aluno.matricula)|lower }}">
+                  <td>{{ loop.index }}</td>
+                  <td>{{ item.aluno.nome }}</td>
+                  <td>{{ item.aluno.matricula }}</td>
+                  <td class="text-center">
+                    <input
+                      class="form-check-input presence-checkbox"
+                      type="checkbox"
+                      name="presentes"
+                      value="{{ item.aluno_id }}"
+                      {% if item.aluno_id in present_ids %}checked{% endif %}
+                    />
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {{ form.submit(class="btn btn-success") }}
+        <a href="{{ url_for('main.professor_dashboard') }}" class="btn btn-outline-secondary">Voltar</a>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Historico Recente de Chamada</div>
+    <div class="card-body">
+      {% if attendance_history %}
+      <div class="table-shell">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Presentes</th>
+                <th>Faltas</th>
+                <th>Presenca</th>
+                <th>Acoes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in attendance_history %}
+              <tr>
+                <td>{{ item.data.strftime('%d/%m/%Y') }}</td>
+                <td>{{ item.presentes }}</td>
+                <td>{{ item.faltas }}</td>
+                <td>{{ item.percentual }}%</td>
+                <td>
+                  <a
+                    href="{{ url_for('main.professor_attendance', timetable_id=timetable.id, data=item.data.isoformat()) }}"
+                    class="btn btn-sm btn-outline-secondary"
+                  >
+                    Abrir
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <h5>Nenhuma chamada registrada ainda</h5>
+        <p>Salve a primeira chamada para comecar o historico da turma.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    const rows = Array.from(document.querySelectorAll('.attendance-row'));
+    const checkboxes = Array.from(document.querySelectorAll('.presence-checkbox'));
+    const searchInput = document.getElementById('attendance-search');
+    const markVisibleBtn = document.getElementById('mark-visible-present');
+    const clearVisibleBtn = document.getElementById('clear-visible-present');
+
+    const totalEl = document.getElementById('summary-total');
+    const presentEl = document.getElementById('summary-present');
+    const absentEl = document.getElementById('summary-absent');
+    const percentEl = document.getElementById('summary-percent');
+
+    function visibleRows() {
+      return rows.filter((row) => row.style.display !== 'none');
+    }
+
+    function updateSummary() {
+      const total = checkboxes.length;
+      const presentes = checkboxes.filter((checkbox) => checkbox.checked).length;
+      const faltas = total - presentes;
+      const percentual = total ? ((presentes / total) * 100).toFixed(1) : '0.0';
+
+      totalEl.textContent = String(total);
+      presentEl.textContent = String(presentes);
+      absentEl.textContent = String(faltas);
+      percentEl.textContent = percentual + '%';
+    }
+
+    function applyFilter() {
+      const term = (searchInput.value || '').trim().toLowerCase();
+      rows.forEach((row) => {
+        const haystack = row.dataset.search || '';
+        row.style.display = haystack.includes(term) ? '' : 'none';
+      });
+    }
+
+    function setVisibleState(checked) {
+      visibleRows().forEach((row) => {
+        const checkbox = row.querySelector('.presence-checkbox');
+        if (checkbox) {
+          checkbox.checked = checked;
+        }
+      });
+      updateSummary();
+    }
+
+    searchInput.addEventListener('input', applyFilter);
+    markVisibleBtn.addEventListener('click', () => setVisibleState(true));
+    clearVisibleBtn.addEventListener('click', () => setVisibleState(false));
+
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener('change', updateSummary);
+    });
+
+    updateSummary();
+  })();
+</script>
+{% endblock %}

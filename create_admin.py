@@ -8,8 +8,8 @@ with app.app_context():
     if admin:
         print(f'Admin ja existe: {admin.username}')
     else:
-        admin = User(username='admin', email='admin@example.com', role='admin')
-        admin.set_password('admin123')
+        admin = User(username='admin', email='admin@example.com', role='admin', must_change_password=False)
+        admin.set_password('Admin1234')
         db.session.add(admin)
         db.session.commit()
-        print('Admin criado: admin / admin123')
+        print('Admin criado: admin / Admin1234')
