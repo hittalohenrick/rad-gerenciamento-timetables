@@ -1,5 +1,6 @@
 import random
 import string
+from functools import wraps
 
 from flask import flash, redirect, url_for
 from flask_login import current_user
@@ -15,21 +16,47 @@ def times_overlap(start1, end1, start2, end2):
 
 
 def admin_required_redirect():
-    if current_user.is_admin():
+    if getattr(current_user, "is_authenticated", False) and current_user.is_admin():
         return None
     flash("Acesso restrito ao administrador.", "danger")
     return redirect(url_for("main.index"))
 
 
 def professor_required_redirect():
-    if current_user.role == "professor":
+    if getattr(current_user, "is_authenticated", False) and current_user.role == "professor":
         return None
     flash("Acesso restrito aos professores.", "danger")
     return redirect(url_for("main.index"))
 
 
+def admin_required(view_func):
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+        guard = admin_required_redirect()
+        if guard:
+            return guard
+        return view_func(*args, **kwargs)
+
+    return wrapper
+
+
+def professor_required(view_func):
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+        guard = professor_required_redirect()
+        if guard:
+            return guard
+        return view_func(*args, **kwargs)
+
+    return wrapper
+
+
 def normalize_text(value):
     return (value or "").strip()
+
+
+def synthetic_professor_email(username):
+    return f"{normalize_text(username).lower()}@login.local"
 
 
 def generate_disciplina_code():
@@ -85,7 +112,7 @@ def find_timetable_conflict(dia, hora_inicio, hora_fim, sala_id, professor_id, e
     return None
 
 
-def username_or_email_exists(username, email, exclude_user_id=None):
+def username_exists(username, exclude_user_id=None):
     query = User.query
     if exclude_user_id is not None:
         query = query.filter(User.id != exclude_user_id)
@@ -93,10 +120,6 @@ def username_or_email_exists(username, email, exclude_user_id=None):
     existing_username = query.filter(func.lower(User.username) == username.lower()).first()
     if existing_username:
         return "Ja existe usuario com este nome."
-
-    existing_email = query.filter(func.lower(User.email) == email.lower()).first()
-    if existing_email:
-        return "Ja existe usuario com este email."
 
     return None
 
@@ -158,10 +181,3 @@ def aluno_has_schedule_conflict(aluno_id, timetable_id):
         .first()
         is not None
     )
-
-
-def generate_temporary_password():
-    prefix = "".join(random.choices(string.ascii_uppercase, k=2))
-    middle = "".join(random.choices(string.ascii_lowercase, k=4))
-    suffix = "".join(random.choices(string.digits, k=3))
-    return f"{prefix}{middle}{suffix}"

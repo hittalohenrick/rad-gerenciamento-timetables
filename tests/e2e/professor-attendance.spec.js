@@ -31,11 +31,11 @@ test.describe('Fluxos E2E - Professor e Chamada', () => {
     await page.click('#mark-visible-present');
     await expect(page.locator('#summary-present')).toHaveText('3');
 
-    await page.fill('input[name="chamada_data"]', '2026-04-10');
+    await page.fill('input[name="chamada_data"]', '10/04/2026');
     await page.getByRole('button', { name: 'Salvar Chamada' }).click();
     await expectFlash(page, /deve corresponder ao dia da turma/i);
 
-    await page.fill('input[name="chamada_data"]', '2026-04-08');
+    await page.fill('input[name="chamada_data"]', '08/04/2026');
     await page.click('#clear-visible-present');
     await page.click('#mark-visible-present');
     await page.getByRole('button', { name: 'Salvar Chamada' }).click();

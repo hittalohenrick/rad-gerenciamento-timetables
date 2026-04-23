@@ -117,11 +117,11 @@ Responsabilidades:
 3. Inicializar extensoes (`db`, `login_manager`, `migrate`).
 4. Garantir `PRAGMA foreign_keys=ON` no SQLite.
 5. Registrar blueprint principal (`app/routes`).
-6. Aplicar recuperacao de schema minimo em ambiente local nao-test.
+6. Manter fluxo de schema centralizado em migracoes Alembic.
 
 Decisao importante:
 
-- Existe um `ensure_minimum_schema` para cenarios em que o banco local esteja incompleto, reduzindo friccao de execucao em banca/apresentacao.
+- O bootstrap nao cria tabelas automaticamente: toda evolucao de schema passa por `flask db upgrade`, deixando o fluxo previsivel e mais simples de explicar.
 
 ## 7. Escolha de ferramentas e justificativa (detalhada)
 
@@ -280,8 +280,8 @@ Regras no backend (`app/routes/helpers.py`, `app/routes/admin.py`, `app/routes/p
 4. Bloqueio de exclusao de entidades com vinculos ativos.
 5. Bloqueio de chamada em data futura.
 6. Bloqueio de chamada com dia da semana diferente da turma.
-7. Politica minima de senha (mai., min., numero e tamanho).
-8. Troca obrigatoria de senha apos reset/primeiro acesso.
+7. Politica simples de senha (tamanho minimo).
+8. Troca de senha pelo usuario autenticado.
 
 ## 10. Fluxos principais do sistema
 
@@ -336,7 +336,7 @@ Historico de evolucao do banco.
 
 1. Revisao inicial.
 2. Inclusao de alunos/matriculas/presencas.
-3. Inclusao de politica de senha.
+3. Inclusao de campos de senha no usuario.
 
 ### `scripts/`
 
@@ -388,7 +388,8 @@ Migracoes relevantes:
 
 1. `a3fd5de956b3`: base inicial (`user`, `sala`, `disciplina`, `timetable`).
 2. `2c7b6c9bf6c1`: ampliacao para alunos, matriculas e presencas.
-3. `8f31c2ab09d4`: endurecimento de politica de senha no usuario.
+3. `8f31c2ab09d4`: inclusao de campos de politica de senha no usuario.
+4. `c2b0d9c4f7a1`: remocao dos campos legados para simplificar o fluxo de autenticacao.
 
 Interpretacao arquitetural:
 
@@ -429,15 +430,15 @@ Solucao:
 
 - Validacao de data no backend (`validate_attendance_date`) e mensagens explicativas para correcao.
 
-## 13.4 Primeira autenticacao apos reset de senha
+## 13.4 Simplificacao do fluxo de autenticacao
 
 Problema:
 
-- Fluxo de seguranca exigia troca obrigatoria de senha sem quebrar navegacao.
+- Fluxo de autenticacao estava mais complexo do que o necessario para demonstracao academica.
 
 Solucao:
 
-- Campo `must_change_password` no modelo `User` + `before_app_request` para forcar redirecionamento a `change-password`.
+- Mantido controle por perfil (`admin`/`professor`) com login simples e troca de senha opcional.
 
 ## 13.5 UX de seletores com muitos registros
 
@@ -480,15 +481,15 @@ Cobrem, entre outros:
 3. Validacao de faixa de horario.
 4. Regras de exclusao protegida.
 5. Duplicidade de usuario/email.
-6. Politica de senha forte.
-7. Fluxo de troca obrigatoria de senha.
+6. Politica simples de senha.
+7. Troca de senha pelo proprio usuario.
 8. Cadastro de alunos.
 9. Matricula com capacidade e conflito.
 10. Registro de chamada e validacoes de data.
 
 Resultado atual observado:
 
-- 22 testes aprovados.
+- 21 testes aprovados.
 
 ## 14.2 Testes E2E (Playwright)
 
@@ -558,7 +559,7 @@ Em termos de maturidade academica, o sistema vai alem do CRUD basico ao incorpor
 1. `app/__init__.py`: bootstrap da aplicacao.
 2. `app/models.py`: entidades, constraints e relacionamentos.
 3. `app/forms.py`: contratos de entrada e validacoes.
-4. `app/routes/auth.py`: autenticacao e politica de senha.
+4. `app/routes/auth.py`: autenticacao, login e troca de senha.
 5. `app/routes/admin.py`: casos de uso administrativos.
 6. `app/routes/professor.py`: casos de uso docentes (dashboard e chamada).
 7. `app/routes/helpers.py`: regras reutilizaveis de dominio.

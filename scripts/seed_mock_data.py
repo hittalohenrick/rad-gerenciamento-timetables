@@ -263,7 +263,7 @@ def ensure_admin() -> None:
     if admin:
         return
 
-    admin = User(username="admin", email="admin@faculdade.local", role="admin", must_change_password=False)
+    admin = User(username="admin", email="admin@faculdade.local", role="admin")
     admin.set_password("Admin1234")
     db.session.add(admin)
     db.session.commit()
@@ -298,7 +298,6 @@ def create_professors(total: int) -> list[User]:
             username=login,
             email=f"{login}@dcc.universidade.br",
             role="professor",
-            must_change_password=False,
         )
         professor.set_password("Mock12345")
         professors.append(professor)

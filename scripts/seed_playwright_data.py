@@ -13,12 +13,11 @@ from app import create_app, db
 from app.models import Aluno, Disciplina, Matricula, Presenca, Sala, Timetable, User
 
 
-def create_user(username: str, email: str, password: str, role: str, must_change_password: bool = False) -> User:
+def create_user(username: str, email: str, password: str, role: str) -> User:
     user = User(
         username=username,
         email=email,
         role=role,
-        must_change_password=must_change_password,
     )
     user.set_password(password)
     db.session.add(user)

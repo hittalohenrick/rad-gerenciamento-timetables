@@ -8,11 +8,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app import db
-from app.forms import AttendanceForm
+from app.forms import AttendanceForm, parse_date_br
 from app.models import Matricula, Presenca, Timetable
 
 from . import bp
-from .helpers import normalize_text, professor_required_redirect
+from .helpers import normalize_text, professor_required
 
 
 DAY_TO_WEEKDAY = {
@@ -70,6 +70,24 @@ def validate_attendance_date(selected_date: date, timetable_day: str) -> str | N
     return None
 
 
+def parse_attendance_date_value(raw_value: str) -> date | None:
+    normalized = normalize_text(raw_value)
+    if not normalized:
+        return None
+
+    try:
+        return parse_date_br(normalized)
+    except (TypeError, ValueError):
+        pass
+
+    try:
+        return datetime.strptime(normalized, "%Y-%m-%d").date()
+    except ValueError:
+        pass
+
+    return None
+
+
 def build_attendance_history(timetable_id: int) -> list[dict[str, object]]:
     rows = (
         db.session.query(
@@ -104,11 +122,8 @@ def build_attendance_history(timetable_id: int) -> list[dict[str, object]]:
 
 @bp.route("/professor")
 @login_required
+@professor_required
 def professor_dashboard():
-    guard = professor_required_redirect()
-    if guard:
-        return guard
-
     timetables = (
         Timetable.query.options(
             joinedload(Timetable.sala),
@@ -125,11 +140,8 @@ def professor_dashboard():
 
 @bp.route("/professor/turma/<int:timetable_id>/chamada", methods=["GET", "POST"])
 @login_required
+@professor_required
 def professor_attendance(timetable_id):
-    guard = professor_required_redirect()
-    if guard:
-        return guard
-
     timetable = (
         Timetable.query.options(
             joinedload(Timetable.sala),
@@ -155,25 +167,26 @@ def professor_attendance(timetable_id):
     if request.method == "GET":
         date_param = normalize_text(request.args.get("data"))
         if date_param:
-            try:
-                form.chamada_data.data = datetime.strptime(date_param, "%Y-%m-%d").date()
-            except ValueError:
-                flash("Data invalida. Use o formato AAAA-MM-DD.", "warning")
-                form.chamada_data.data = recommended_date
+            parsed_date = parse_attendance_date_value(date_param)
+            if parsed_date is not None:
+                form.chamada_data.data = parsed_date.strftime("%d/%m/%Y")
+            else:
+                flash("Data invalida. Use o formato DD/MM/AAAA.", "warning")
+                form.chamada_data.data = recommended_date.strftime("%d/%m/%Y")
 
-    if form.chamada_data.data is None:
-        form.chamada_data.data = recommended_date
+    if not normalize_text(form.chamada_data.data):
+        form.chamada_data.data = recommended_date.strftime("%d/%m/%Y")
 
-    selected_date = form.chamada_data.data
+    selected_date = parse_attendance_date_value(form.chamada_data.data) or recommended_date
 
     if form.validate_on_submit():
-        selected_date = form.chamada_data.data
+        selected_date = parse_date_br(form.chamada_data.data)
         date_error = validate_attendance_date(selected_date, timetable.dia)
 
         if date_error:
             flash(date_error, "warning")
             selected_date = recommended_date
-            form.chamada_data.data = selected_date
+            form.chamada_data.data = selected_date.strftime("%d/%m/%Y")
         else:
             selected_ids = set()
             for raw_id in request.form.getlist("presentes"):
@@ -223,7 +236,10 @@ def professor_attendance(timetable_id):
     if request.method == "GET" and get_date_error:
         flash(get_date_error, "warning")
         selected_date = recommended_date
-        form.chamada_data.data = selected_date
+        form.chamada_data.data = selected_date.strftime("%d/%m/%Y")
+
+    # Garante que o campo sempre seja exibido em DD/MM/AAAA.
+    form.chamada_data.data = selected_date.strftime("%d/%m/%Y")
 
     presencas_dia = Presenca.query.filter_by(timetable_id=timetable.id, data=selected_date).all()
     present_ids = {presenca.aluno_id for presenca in presencas_dia if presenca.presente}

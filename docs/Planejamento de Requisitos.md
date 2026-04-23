@@ -39,7 +39,7 @@ Desenvolver uma aplicacao web para administrar turmas e horarios de forma centra
 ### RF04 - Gerenciamento de professores (CRUD)
 - Cadastrar, listar, editar e excluir professores.
 - Definir login, email e senha.
-- Permitir reset de senha com troca obrigatoria no proximo login.
+- Permitir reset de senha para um valor padrao.
 
 ### RF05 - Gerenciamento de alunos (CRUD)
 - Cadastrar, listar, editar e excluir alunos.
@@ -63,7 +63,7 @@ Desenvolver uma aplicacao web para administrar turmas e horarios de forma centra
 - Atualizar chamada da mesma data sem duplicar registros.
 
 ### RF09 - Seguranca de senha
-- Validar politica minima de senha (letra maiuscula, minuscula e numero).
+- Validar politica minima de senha (tamanho minimo).
 - Permitir troca de senha do usuario autenticado.
 
 ## 4. Requisitos Nao Funcionais

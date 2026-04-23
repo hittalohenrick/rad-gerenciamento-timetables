@@ -14,7 +14,6 @@
   <form method="POST" novalidate>
     {{ form.hidden_tag() }}
     {{ render_field(form.username) }}
-    {{ render_field(form.email) }}
 
     {% if form.password is defined %}
     {{ render_field(form.password) }}
@@ -22,10 +21,6 @@
 
     {% if form.password2 is defined %}
     {{ render_field(form.password2) }}
-    {% endif %}
-
-    {% if form.role is defined and form.role.choices|length > 1 %}
-    {{ render_field(form.role) }}
     {% endif %}
 
     {{ form.submit(class="btn btn-primary") }}

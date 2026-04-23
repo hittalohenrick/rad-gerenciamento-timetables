@@ -33,7 +33,6 @@ test.describe('Fluxos E2E - Admin', () => {
     const salaNome = `Sala E2E ${suffix}`;
     const disciplinaNome = `Disciplina E2E ${suffix}`;
     const professorLogin = `prof.e2e.${suffix}`;
-    const professorEmail = `${professorLogin}@dcc.universidade.br`;
     const alunoNome = `Aluno E2E ${suffix}`;
     const alunoMatricula = `20261BCC${suffix}`;
 
@@ -52,7 +51,6 @@ test.describe('Fluxos E2E - Admin', () => {
 
     await page.goto('/professor/new');
     await page.fill('input[name="username"]', professorLogin);
-    await page.fill('input[name="email"]', professorEmail);
     await page.fill('input[name="password"]', 'ProfE2e123');
     await page.fill('input[name="password2"]', 'ProfE2e123');
     await clickSubmit(page, /salvar/i);

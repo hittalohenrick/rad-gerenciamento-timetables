@@ -42,12 +42,13 @@ def create_admin():
     return admin
 
 
-def create_professor(username="professor", email="prof@test.com", password="prof12345", must_change_password=False):
+def create_professor(username="professor", email=None, password="prof12345"):
+    if email is None:
+        email = f"{username}@login.local"
     professor = User(
         username=username,
         email=email,
         role="professor",
-        must_change_password=must_change_password,
     )
     professor.set_password(password)
     db.session.add(professor)
@@ -243,7 +244,7 @@ def test_delete_routes_disallow_get_method(app, client):
     assert response.status_code == 405
 
 
-def test_prevent_duplicate_professor_email(app, client):
+def test_prevent_duplicate_professor_login(app, client):
     with app.app_context():
         create_admin()
         create_professor(username="professor", email="prof@test.com")
@@ -252,8 +253,7 @@ def test_prevent_duplicate_professor_email(app, client):
     response = client.post(
         "/professor/new",
         data={
-            "username": "outro-prof",
-            "email": "prof@test.com",
+            "username": "professor",
             "password": "Senha123",
             "password2": "Senha123",
         },
@@ -261,10 +261,10 @@ def test_prevent_duplicate_professor_email(app, client):
     )
 
     assert response.status_code == 200
-    assert b"Ja existe usuario com este email." in response.data
+    assert b"Ja existe usuario com este nome." in response.data
 
 
-def test_password_policy_blocks_weak_professor_password(app, client):
+def test_professor_creation_accepts_simple_password(app, client):
     with app.app_context():
         create_admin()
 
@@ -273,63 +273,46 @@ def test_password_policy_blocks_weak_professor_password(app, client):
         "/professor/new",
         data={
             "username": "novo-prof",
-            "email": "novo-prof@test.com",
-            "password": "senhafraca",
-            "password2": "senhafraca",
+            "password": "abc123",
+            "password2": "abc123",
         },
         follow_redirects=True,
     )
 
     assert response.status_code == 200
-    assert b"A senha deve ter ao menos uma letra maiuscula." in response.data
+    assert b"Professor registrado com sucesso." in response.data
 
 
-def test_professor_must_change_password_on_first_login(app, client):
+def test_professor_can_change_own_password(app, client):
     with app.app_context():
         create_admin()
         create_professor(
             username="prof-first-login",
             email="prof-first@test.com",
             password="Prof12345",
-            must_change_password=True,
         )
 
     response = login(client, "prof-first-login", "Prof12345")
     assert response.status_code == 200
-    assert b"Alterar Senha" in response.data
-    assert b"Voce precisa alterar sua senha antes de continuar." in response.data
+    assert b"Minhas Turmas" in response.data
 
-
-def test_change_password_removes_first_login_block(app, client):
-    with app.app_context():
-        create_admin()
-        create_professor(
-            username="prof-change",
-            email="prof-change@test.com",
-            password="Prof12345",
-            must_change_password=True,
-        )
-
-    login(client, "prof-change", "Prof12345")
     response = client.post(
         "/change-password",
         data={
             "current_password": "Prof12345",
-            "new_password": "NovaSenha123",
-            "new_password2": "NovaSenha123",
+            "new_password": "nova123",
+            "new_password2": "nova123",
         },
         follow_redirects=True,
     )
 
     assert response.status_code == 200
     assert b"Senha alterada com sucesso." in response.data
-    assert b"Minhas Turmas" in response.data
 
     with app.app_context():
-        user = User.query.filter_by(username="prof-change").first()
+        user = User.query.filter_by(username="prof-first-login").first()
         assert user is not None
-        assert user.must_change_password is False
-        assert user.check_password("NovaSenha123")
+        assert user.check_password("nova123")
 
 
 def test_admin_can_create_student(app, client):
@@ -493,13 +476,12 @@ def test_admin_can_reset_professor_password(app, client):
     )
 
     assert response.status_code == 200
-    assert b"Senha temporaria de prof-reset:" in response.data
-    assert b"troca obrigatoria no proximo login" in response.data
+    assert b"Senha redefinida de prof-reset: 123456." in response.data
 
     with app.app_context():
         professor = db.session.get(User, professor_id)
         assert professor is not None
-        assert professor.must_change_password is True
+        assert professor.check_password("123456")
 
 
 def test_professor_can_submit_attendance(app, client):
@@ -532,7 +514,7 @@ def test_professor_can_submit_attendance(app, client):
     login(client, "prof-call", "prof12345")
     response = client.post(
         f"/professor/turma/{timetable_id}/chamada",
-        data={"chamada_data": date(2026, 4, 8).isoformat(), "presentes": [str(aluno_id)]},
+        data={"chamada_data": date(2026, 4, 8).strftime("%d/%m/%Y"), "presentes": [str(aluno_id)]},
         follow_redirects=True,
     )
 
@@ -580,7 +562,7 @@ def test_professor_attendance_rejects_future_date(app, client):
     login(client, "prof-future", "prof12345")
     response = client.post(
         f"/professor/turma/{timetable_id}/chamada",
-        data={"chamada_data": future_date.isoformat(), "presentes": [str(aluno_id)]},
+        data={"chamada_data": future_date.strftime("%d/%m/%Y"), "presentes": [str(aluno_id)]},
         follow_redirects=True,
     )
 
@@ -627,7 +609,7 @@ def test_professor_attendance_rejects_wrong_weekday(app, client):
     login(client, "prof-weekday", "prof12345")
     response = client.post(
         f"/professor/turma/{timetable_id}/chamada",
-        data={"chamada_data": wrong_date.isoformat(), "presentes": [str(aluno_id)]},
+        data={"chamada_data": wrong_date.strftime("%d/%m/%Y"), "presentes": [str(aluno_id)]},
         follow_redirects=True,
     )
 

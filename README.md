@@ -5,7 +5,7 @@ Sistema web em Flask para gerenciar turmas, professores, salas, alunos e chamada
 ## Funcionalidades
 
 - Login por perfil (`admin` e `professor`)
-- Troca obrigatoria de senha no primeiro login de professor
+- Troca de senha pelo proprio usuario autenticado
 - CRUD de salas, disciplinas, professores e alunos
 - Alocacao de professores em salas/horarios (timetable)
 - Alocacao de alunos em turmas
@@ -17,7 +17,7 @@ Sistema web em Flask para gerenciar turmas, professores, salas, alunos e chamada
 
 - `admin`: gerencia toda a base (usuarios, turmas, alunos e alocacoes)
 - `professor`: acessa somente suas turmas e registra chamada
-- Admin pode resetar senha de professor (gera senha temporaria)
+- Admin pode resetar senha de professor para um valor padrao
 
 ## Estrutura do repositorio
 

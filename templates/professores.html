@@ -16,7 +16,6 @@
         <thead>
           <tr>
             <th>Login</th>
-            <th>Email</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -24,17 +23,16 @@
           {% for professor in professores %}
           <tr>
             <td>{{ professor.username }}</td>
-            <td>{{ professor.email }}</td>
             <td class="actions-cell">
               <a href="{{ url_for('main.edit_professor', id=professor.id) }}" class="btn btn-sm btn-edit">Editar</a>
               <form
                 method="POST"
                 action="{{ url_for('main.reset_professor_password', id=professor.id) }}"
                 class="d-inline"
-                onsubmit="return confirm('Resetar senha deste professor?');"
+                onsubmit="return confirm('Resetar senha deste professor para 123456?');"
               >
                 {{ reset_form.hidden_tag() }}
-                <button type="submit" class="btn btn-sm btn-secondary">Resetar Senha</button>
+                <button type="submit" class="btn btn-sm btn-secondary">Resetar para 123456</button>
               </form>
               <form
                 method="POST"

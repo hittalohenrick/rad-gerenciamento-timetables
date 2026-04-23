@@ -1,31 +1,14 @@
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.forms import ChangePasswordForm, LoginForm, RegistrationForm
+from app.forms import ChangePasswordForm, LoginForm
 from app.models import User
 
 from . import bp
-from .helpers import admin_required_redirect, normalize_text, username_or_email_exists
-
-
-@bp.before_app_request
-def enforce_password_change():
-    if not current_user.is_authenticated:
-        return None
-
-    if not current_user.must_change_password:
-        return None
-
-    allowed_endpoints = {"main.change_password", "main.logout", "main.login", "static"}
-    endpoint = request.endpoint or ""
-    if endpoint in allowed_endpoints:
-        return None
-
-    flash("Voce precisa alterar sua senha antes de continuar.", "warning")
-    return redirect(url_for("main.change_password"))
+from .helpers import admin_required, normalize_text
 
 
 @bp.route("/")
@@ -65,36 +48,9 @@ def logout():
 
 @bp.route("/register", methods=["GET", "POST"])
 @login_required
+@admin_required
 def register():
-    guard = admin_required_redirect()
-    if guard:
-        return guard
-
-    form = RegistrationForm()
-    if form.validate_on_submit():
-        username = normalize_text(form.username.data)
-        email = normalize_text(form.email.data)
-
-        duplicate_error = username_or_email_exists(username, email)
-        if duplicate_error:
-            flash(duplicate_error, "warning")
-            return render_template("register.html", title="Registrar Usuario", form=form)
-
-        user = User(username=username, email=email, role="professor", must_change_password=True)
-        user.set_password(form.password.data)
-
-        db.session.add(user)
-        try:
-            db.session.commit()
-        except IntegrityError:
-            db.session.rollback()
-            flash("Nao foi possivel registrar o usuario por conflito de dados.", "danger")
-            return render_template("register.html", title="Registrar Usuario", form=form)
-
-        flash("Usuario registrado com sucesso.", "success")
-        return redirect(url_for("main.admin_dashboard"))
-
-    return render_template("register.html", title="Registrar Usuario", form=form)
+    return redirect(url_for("main.new_professor"))
 
 
 @bp.route("/change-password", methods=["GET", "POST"])
@@ -112,8 +68,6 @@ def change_password():
             return render_template("change_password.html", title="Alterar Senha", form=form)
 
         current_user.set_password(form.new_password.data)
-        current_user.must_change_password = False
-
         try:
             db.session.commit()
         except IntegrityError:

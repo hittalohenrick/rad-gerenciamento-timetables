@@ -20,8 +20,6 @@ Definir a estrutura relacional do sistema para suportar:
 - `email` (UNIQUE, NOT NULL)
 - `password_hash` (NOT NULL)
 - `role` (`admin` ou `professor`)
-- `must_change_password` (NOT NULL, default `false`)
-- `password_changed_at`
 
 ### 2.2 `sala`
 - `id` (PK)

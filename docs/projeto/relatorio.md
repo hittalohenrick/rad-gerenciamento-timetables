@@ -119,7 +119,7 @@ Projeto individual nesta versao, com distribuicao por frente tecnica:
 
 ### Testes Realizados
 
-- **pytest:** 22 testes aprovados (autenticacao, autorizacao, conflitos, matriculas, presenca e regras de senha).
+- **pytest:** 21 testes aprovados (autenticacao, autorizacao, conflitos, matriculas, presenca e regras de senha simples).
 - **Playwright E2E:** 4 testes aprovados (fluxo admin e fluxo professor/chamada).
 
 ### Feedback do Usuario

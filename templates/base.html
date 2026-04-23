@@ -20,7 +20,6 @@
     <nav class="navbar navbar-expand-lg app-nav shadow-sm">
       <div class="container">
         <a class="navbar-brand" href="{{ url_for('main.index') }}">
-          <span class="brand-mark">RAD</span>
           Sistema de Timetables
         </a>
         <button
@@ -46,10 +45,11 @@
                 id="adminDropdown"
                 role="button"
                 data-bs-toggle="dropdown"
+                aria-expanded="false"
               >
                 Gerenciar
               </a>
-              <ul class="dropdown-menu">
+              <ul class="dropdown-menu" aria-labelledby="adminDropdown">
                 <li><a class="dropdown-item" href="{{ url_for('main.salas') }}">Salas</a></li>
                 <li><a class="dropdown-item" href="{{ url_for('main.horarios') }}">Horários</a></li>
                 <li><a class="dropdown-item" href="{{ url_for('main.disciplinas') }}">Disciplinas</a></li>
@@ -104,5 +104,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/searchable-selects.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/time-24h-spinner.js') }}"></script>
   </body>
 </html>
