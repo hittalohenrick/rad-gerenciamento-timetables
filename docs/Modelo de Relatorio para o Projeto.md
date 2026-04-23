@@ -1,5 +1,7 @@
 # Relatorio do Projeto - Gerenciamento de Salas
 
+> Documento de referência da disciplina. A versão preenchida do projeto está em `docs/projeto/relatorio.md`.
+
 ## 1. Informacoes Gerais
 
 - **Nome do Projeto:** Gerenciamento de Salas

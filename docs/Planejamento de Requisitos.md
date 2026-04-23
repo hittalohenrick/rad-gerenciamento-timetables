@@ -2,119 +2,126 @@
 
 ## Sistema de Gerenciamento de Timetables
 
-- **Disciplina:** Desenvolvimento Rapido de Aplicacoes em Python (RAD)
+- **Disciplina:** Desenvolvimento Rápido de Aplicações em Python (RAD)
 - **Professor:** Elton Silva
 - **Semestre:** 2026_01
-- **Data da versao:** 12/04/2026
+- **Versão do documento:** final (23/04/2026)
 
-## 1. Definicao do Problema
+## 1. Definição do problema
 
-A grade academica costuma ser controlada de forma manual (planilhas, mensagens e comunicacoes isoladas), o que causa conflitos de horario entre sala/professor, retrabalho de alocacao e pouco controle de presenca.
+A gestão de turmas feita manualmente (planilhas e comunicação informal) gera conflitos de horário, inconsistência de matrícula e baixa rastreabilidade de presença.
 
-## 2. Objetivo do Sistema
+## 2. Objetivo
 
-Desenvolver uma aplicacao web para administrar turmas e horarios de forma centralizada, com:
+Entregar uma aplicação web para gestão acadêmica com:
 
-- autenticacao por perfil (`admin` e `professor`);
-- cadastro e manutencao de entidades academicas;
-- alocacao de turmas sem conflitos de agenda;
-- alocacao de alunos em turmas;
-- registro de chamada por professor.
+- autenticação por perfil (`admin` e `professor`);
+- CRUD das entidades acadêmicas;
+- alocações com validações de integridade;
+- chamada por professor com regras de data.
 
-## 3. Escopo Funcional (Requisitos Funcionais)
+## 3. Requisitos funcionais
 
-### RF01 - Autenticacao e controle de acesso
-- Login com usuario e senha.
-- Redirecionamento por perfil.
-- Restricao de rotas administrativas para perfil `admin`.
+### RF01 - Autenticação e acesso
 
-### RF02 - Gerenciamento de salas (CRUD)
-- Cadastrar, listar, editar e excluir salas.
-- Validar nome e capacidade.
+- login com `username` e senha;
+- redirecionamento por perfil;
+- bloqueio de rotas administrativas para não-admin.
 
-### RF03 - Gerenciamento de disciplinas (CRUD)
-- Cadastrar, listar, editar e excluir disciplinas.
-- Gerar codigo unico da disciplina.
+### RF02 - CRUD de salas
 
-### RF04 - Gerenciamento de professores (CRUD)
-- Cadastrar, listar, editar e excluir professores.
-- Definir login, email e senha.
-- Permitir reset de senha para um valor padrao.
+- cadastrar/listar/editar/excluir;
+- validar nome e capacidade.
 
-### RF05 - Gerenciamento de alunos (CRUD)
-- Cadastrar, listar, editar e excluir alunos.
-- Garantir matricula unica.
+### RF03 - CRUD de disciplinas
 
-### RF06 - Gerenciamento de alocacoes (timetable) (CRUD)
-- Cadastrar, listar, editar e excluir turmas (dia, horario, sala, professor, disciplina).
-- Bloquear conflitos de horario por sala e por professor.
-- Bloquear faixa de horario invalida (`hora_inicio >= hora_fim`).
+- cadastrar/listar/editar/excluir;
+- garantir código único.
 
-### RF07 - Alocacao de alunos em turmas
-- Vincular aluno a turma.
-- Bloquear duplicidade da mesma matricula na mesma turma.
-- Bloquear conflito de horario do aluno.
-- Respeitar capacidade maxima da sala.
+### RF04 - CRUD de professores
+
+- cadastrar/listar/editar/excluir professor;
+- usar login (`username`) e senha;
+- reset administrativo de senha para valor padrão.
+
+### RF05 - CRUD de alunos
+
+- cadastrar/listar/editar/excluir;
+- matrícula única por aluno.
+
+### RF06 - CRUD de turmas (timetable)
+
+- dia, hora início/fim, sala, professor e disciplina;
+- bloquear conflitos de sala e professor;
+- bloquear intervalo inválido (`hora_inicio >= hora_fim`).
+
+### RF07 - Matrícula de alunos em turmas
+
+- vincular aluno a turma;
+- impedir duplicidade da mesma matrícula na mesma turma;
+- impedir conflito de horário do aluno;
+- respeitar capacidade da sala.
 
 ### RF08 - Chamada por professor
-- Professor registra presenca por turma e por data.
-- Bloquear chamada em data futura.
-- Bloquear chamada em dia da semana diferente do dia da turma.
-- Atualizar chamada da mesma data sem duplicar registros.
 
-### RF09 - Seguranca de senha
-- Validar politica minima de senha (tamanho minimo).
-- Permitir troca de senha do usuario autenticado.
+- registrar presença por turma e data;
+- impedir data futura;
+- exigir dia da semana coerente com a turma;
+- atualizar chamada sem duplicar registros.
 
-## 4. Requisitos Nao Funcionais
+### RF09 - Gestão de senha
 
-### RNF01 - Tecnologia
-- Backend em Python com Flask.
-- Persistencia com banco relacional SQLite.
-- ORM com SQLAlchemy e migracoes Alembic.
+- troca de senha do usuário autenticado;
+- validação mínima de senha no formulário.
 
-### RNF02 - Integridade de dados
-- Uso de chaves estrangeiras e constraints de unicidade.
-- Tratamento de excecoes de integridade no backend.
+## 4. Requisitos não funcionais
+
+### RNF01 - Stack
+
+- Python + Flask;
+- SQLite + SQLAlchemy;
+- Alembic para migrações.
+
+### RNF02 - Integridade
+
+- chaves estrangeiras e constraints de unicidade;
+- tratamento de exceções de integridade no backend.
 
 ### RNF03 - Usabilidade
-- Interface web responsiva.
-- Fluxo de navegacao separado por perfil.
-- Formularios com feedback de validacao.
 
-### RNF04 - Seguranca
-- Senhas armazenadas com hash.
-- Rotas sensiveis protegidas por autenticacao e autorizacao.
-- Operacoes destrutivas via `POST` com CSRF.
+- interface web responsiva;
+- navegação por perfil;
+- feedback visual de validações e operações.
+
+### RNF04 - Segurança
+
+- senha com hash;
+- proteção de rotas com autenticação/autorização;
+- operações destrutivas via `POST` + CSRF.
 
 ### RNF05 - Qualidade
-- Testes automatizados de unidade/integracao (pytest) e E2E (Playwright).
 
-## 5. Ferramentas e Tecnologias Escolhidas
+- testes unitários/integrados com `pytest`;
+- testes E2E com Playwright.
 
-- **Linguagem:** Python 3.12
-- **Framework Web:** Flask
-- **Banco de Dados:** SQLite
-- **ORM:** Flask-SQLAlchemy
-- **Migracoes:** Flask-Migrate / Alembic
-- **Autenticacao:** Flask-Login
-- **Validacao de formularios:** Flask-WTF / WTForms
-- **Frontend:** Jinja2 + Bootstrap + CSS customizado
-- **Testes:** pytest + Playwright
-- **Versionamento:** Git
+## 5. Ferramentas escolhidas
 
-## 6. Modelo Inicial do Banco de Dados
+- Python 3.12
+- Flask, Flask-Login, Flask-WTF
+- SQLAlchemy, Flask-Migrate
+- SQLite
+- Jinja + Bootstrap + CSS/JS próprios
+- pytest + Playwright
+- Git
 
-### Entidades principais
-- `user` (usuarios administrativos e professores)
-- `sala`
-- `disciplina`
-- `timetable`
-- `aluno`
-- `matricula`
-- `presenca`
+## 6. Modelo de dados inicial
 
-### Relacionamentos iniciais
+Entidades centrais:
+
+- `user`, `sala`, `disciplina`, `timetable`, `aluno`, `matricula`, `presenca`.
+
+Relações principais:
+
 - `sala (1) -> (N) timetable`
 - `user/professor (1) -> (N) timetable`
 - `disciplina (1) -> (N) timetable`
@@ -123,14 +130,8 @@ Desenvolver uma aplicacao web para administrar turmas e horarios de forma centra
 - `aluno (1) -> (N) presenca`
 - `timetable (1) -> (N) presenca`
 
-### Regras iniciais de consistencia
-- Unicidade de login e email do usuario.
-- Unicidade de matricula de aluno.
-- Unicidade de alocacao por sala e por professor no mesmo intervalo.
-- Unicidade de presenca por `data + aluno + turma`.
+## 7. Critérios de aceite da fase
 
-## 7. Criterios de Aceite da Fase de Planejamento
-
-- Requisitos funcionais e nao funcionais descritos de forma clara.
-- Tecnologias justificadas e aderentes ao escopo.
-- Modelo de dados inicial com relacionamentos suficientes para suportar CRUD e regras de negocio.
+- requisitos funcionais e não funcionais claros;
+- tecnologia aderente ao escopo da disciplina;
+- modelo de dados suficiente para CRUD + regras de negócio.

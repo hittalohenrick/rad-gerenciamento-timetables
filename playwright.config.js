@@ -22,7 +22,7 @@ module.exports = defineConfig({
     headless: true,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: process.env.PW_VIDEO_MODE || 'retain-on-failure',
   },
   globalSetup: require.resolve('./tests/e2e/global-setup.js'),
   webServer: {

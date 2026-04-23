@@ -1,37 +1,44 @@
 # Documento de Modelagem de Dados
 
-## Projeto
-Sistema de Gerenciamento de Timetables
+Projeto: Sistema de Gerenciamento de Timetables
 
-## 1. Objetivo da Modelagem
+Versão: final (23/04/2026)
 
-Definir a estrutura relacional do sistema para suportar:
+## 1. Objetivo
 
-- cadastro de usuarios, salas, disciplinas e alunos;
-- alocacao de turmas (grade horaria);
-- matricula de alunos em turmas;
-- controle de presenca por data.
+Definir o esquema relacional para suportar:
 
-## 2. Entidades e Atributos
+- gestão de usuários, salas, disciplinas e alunos;
+- oferta de turmas (timetable);
+- matrícula aluno-turma;
+- registro de presença por data.
 
-### 2.1 `user`
+## 2. Entidades e atributos
+
+## 2.1 `user`
+
 - `id` (PK)
 - `username` (UNIQUE, NOT NULL)
-- `email` (UNIQUE, NOT NULL)
+- `email` (UNIQUE, NOT NULL) **uso técnico interno**
 - `password_hash` (NOT NULL)
 - `role` (`admin` ou `professor`)
 
-### 2.2 `sala`
+Observação: funcionalmente, o login do professor é por `username`.
+
+## 2.2 `sala`
+
 - `id` (PK)
 - `nome` (NOT NULL)
 - `capacidade` (NOT NULL)
 
-### 2.3 `disciplina`
+## 2.3 `disciplina`
+
 - `id` (PK)
 - `nome` (NOT NULL)
 - `codigo` (UNIQUE, NOT NULL)
 
-### 2.4 `timetable`
+## 2.4 `timetable`
+
 - `id` (PK)
 - `dia` (NOT NULL)
 - `hora_inicio` (NOT NULL)
@@ -40,20 +47,28 @@ Definir a estrutura relacional do sistema para suportar:
 - `professor_id` (FK -> `user.id`, NOT NULL)
 - `disciplina_id` (FK -> `disciplina.id`, NOT NULL)
 
-### 2.5 `aluno`
+Constraints de negócio:
+
+- `UNIQUE (dia, hora_inicio, hora_fim, sala_id)`
+- `UNIQUE (dia, hora_inicio, hora_fim, professor_id)`
+
+## 2.5 `aluno`
+
 - `id` (PK)
 - `nome` (NOT NULL)
 - `matricula` (UNIQUE, NOT NULL)
 - `created_at` (NOT NULL)
 
-### 2.6 `matricula`
+## 2.6 `matricula`
+
 - `id` (PK)
 - `aluno_id` (FK -> `aluno.id`, NOT NULL)
 - `timetable_id` (FK -> `timetable.id`, NOT NULL)
 - `created_at` (NOT NULL)
 - `UNIQUE (aluno_id, timetable_id)`
 
-### 2.7 `presenca`
+## 2.7 `presenca`
+
 - `id` (PK)
 - `data` (NOT NULL)
 - `presente` (NOT NULL)
@@ -72,37 +87,20 @@ Definir a estrutura relacional do sistema para suportar:
 - `aluno (1) -> (N) presenca`
 - `timetable (1) -> (N) presenca`
 
-## 4. Regras de Integridade
+## 4. Regras de integridade
 
-1. **Unicidade de identidade:** `user.username`, `user.email`, `aluno.matricula` e `disciplina.codigo` sao unicos.
-2. **Consistencia de alocacao:**
-   - `UNIQUE (dia, hora_inicio, hora_fim, sala_id)`
-   - `UNIQUE (dia, hora_inicio, hora_fim, professor_id)`
-3. **Consistencia de matricula:** aluno nao pode ser matriculado duas vezes na mesma turma.
-4. **Consistencia de presenca:** aluno tem no maximo um registro por data na mesma turma.
+1. unicidade de identidade: `user.username`, `aluno.matricula`, `disciplina.codigo`.
+2. consistência de alocação: sem sobreposição de sala/professor no mesmo intervalo.
+3. consistência de matrícula: aluno não pode repetir matrícula na mesma turma.
+4. consistência de presença: um registro por aluno/turma/data.
 
-## 5. Regras de Negocio Aplicadas no Backend
+## 5. Regras de negócio no backend
 
-- Bloqueio de sobreposicao de horarios (sala/professor/aluno), incluindo conflitos parciais.
-- Bloqueio de matricula quando capacidade da sala e atingida.
-- Bloqueio de chamada em data futura.
-- Bloqueio de chamada em dia de semana diferente do dia da turma.
+- bloqueio de conflito de horário (sala, professor e aluno);
+- bloqueio por capacidade da sala;
+- chamada não permite data futura;
+- chamada exige dia da semana compatível com a turma.
 
-## 6. Diagrama Relacional (visao textual)
+## 6. Conclusão
 
-`user (id)` <- `timetable.professor_id` -> `timetable (id)` <- `timetable.sala_id` -> `sala (id)`
-
-`disciplina (id)` <- `timetable.disciplina_id`
-
-`aluno (id)` <- `matricula.aluno_id` -> `matricula.timetable_id` -> `timetable (id)`
-
-`aluno (id)` <- `presenca.aluno_id` -> `presenca.timetable_id` -> `timetable (id)`
-
-## 7. Conclusao da Modelagem
-
-A modelagem atende os criterios obrigatorios do trabalho final:
-
-- banco relacional com entidades relacionadas;
-- suporte a CRUD completo;
-- regras de integridade no banco e na camada de aplicacao;
-- base adequada para os fluxos administrativos e docentes.
+A modelagem atende ao escopo RAD com base relacional íntegra, suporte a CRUD completo e regras essenciais da operação acadêmica.

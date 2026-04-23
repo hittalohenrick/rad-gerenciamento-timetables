@@ -1,5 +1,7 @@
 # TRABALHO FINAL
 
+> Documento de referência da disciplina. Evidências da entrega final deste projeto estão em `docs/documentacao_geral_final.md` e `docs/evidencias_testes.md`.
+
 ## Desenvolvimento Rapido de Aplicacoes em Python (RAD)
 
 - **Disciplina:** Desenvolvimento Rapido de Aplicacoes em Python

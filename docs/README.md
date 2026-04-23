@@ -1,29 +1,34 @@
-# Documentacao do Projeto
+# Documentação do Projeto
 
-Este diretorio concentra os artefatos academicos do trabalho final de RAD.
+Atualizado em: 23/04/2026
 
-## Referencias da disciplina
+Este diretório concentra os artefatos acadêmicos e técnicos do projeto RAD.
 
-- `TRABALHO FINAL_CRITERIOS.md`: criterios oficiais de avaliacao.
-- `Modelo de Relatorio para o Projeto.md`: estrutura obrigatoria do relatorio.
+## Documentos principais (versões ativas)
 
-Arquivos `.docx` com o mesmo nome sao as versoes originais fornecidas pela disciplina.
+- `documentacao_geral_final.md`: documentação final completa (objetivo, stack, arquitetura, integração e explicação arquivo a arquivo da raiz).
+- `evidencias_testes.md`: resultado de testes unitários/E2E + caminhos dos vídeos e relatório.
+- `diagrama_estrutura_projeto.md`: árvore detalhada do projeto.
+- `diagrama_estrutura_projeto_resumido.md`: versão curta para apresentação.
+- `estrutura_projeto_slide_pronto.md`: roteiro rápido para slides.
+- `Planejamento de Requisitos.md`: fase 1 (requisitos).
+- `projeto/documento_prototipo_interface.md`: fase 2 (UX/UI).
+- `projeto/documento_modelagem.md`: fase 3 (modelagem e regras).
+- `projeto/relatorio.md`: relatório consolidado.
+- `projeto/memorial_tecnico_tcc.md`: memorial técnico.
+- `entregas.md`: cronograma/status.
 
-## Documentos produzidos no projeto
+## Evidências de execução
 
-### Fase 1 - Planejamento de Requisitos
-- `Planejamento de Requisitos.md`
+- Vídeo E2E completo: `evidencias/video_teste_funcionalidades.webm`
+- Relatório Playwright: `evidencias/playwright-report/index.html`
 
-### Fase 2 - Design do Usuario
-- `projeto/documento_prototipo_interface.md`
+## Arquivos de referência da disciplina
 
-### Fase 3 - Construcao (apoio tecnico)
-- `projeto/documento_modelagem.md`
+- `TRABALHO FINAL_CRITERIOS.md`
+- `Modelo de Relatorio para o Projeto.md`
 
-### Fase 4 - Transicao + Relatorio Final
-- `projeto/relatorio.md`
+## Observação sobre `.docx` e `.pdf`
 
-## Observacoes
-
-- Os arquivos em Markdown sao a fonte principal para manutencao da documentacao.
-- Se necessario para entrega, os `.md` podem ser convertidos para `.docx`/`.pdf` preservando o modelo da disciplina.
+Os arquivos `.docx`/`.pdf` existentes neste diretório são artefatos de entrega/apoio.
+A fonte de manutenção neste repositório é Markdown (`.md`).
