@@ -2,7 +2,7 @@ from flask import Blueprint
 
 bp = Blueprint("main", __name__)
 
-# Re-export helpers used by tests/importers.
+# Re-export helpers used by route modules/importers.
 from .helpers import find_timetable_conflict, times_overlap
 
 # Register route modules.

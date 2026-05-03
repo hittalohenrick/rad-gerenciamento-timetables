@@ -2,7 +2,6 @@ import sqlite3
 
 from flask import Flask
 from flask_login import LoginManager
-from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
@@ -12,7 +11,6 @@ from config import Config
 
 db = SQLAlchemy()
 login_manager = LoginManager()
-migrate = Migrate()
 
 
 @event.listens_for(Engine, "connect")
@@ -32,7 +30,6 @@ def create_app(config_overrides=None):
 
     db.init_app(app)
     login_manager.init_app(app)
-    migrate.init_app(app, db)
 
     # Importa os modelos para registrar metadata das tabelas.
     from app import models  # noqa: F401

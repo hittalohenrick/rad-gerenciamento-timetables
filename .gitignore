@@ -19,7 +19,6 @@ coverage.xml
 *.cover
 *.log
 .mypy_cache/
-.pytest_cache/
 .hypothesis
 .env
 .DS_Store
@@ -28,15 +27,10 @@ coverage.xml
 .codex
 
 # Banco local
-instance/*.db
 instance/*.db-*
 *.sqlite
 *.sqlite3
-
-# Node / E2E
-node_modules/
-playwright-report/
-test-results/
+!instance/app.db
 
 # Cobertura
 htmlcov/

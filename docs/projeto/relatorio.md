@@ -1,79 +1,178 @@
 # Relatório do Projeto - Sistema de Gerenciamento de Timetables
 
-Versão final: 23/04/2026
+Versão: 27/04/2026
 
-## 1. Informações gerais
+## 1. Informações Gerais
 
-- Projeto: Sistema de Gerenciamento de Timetables
-- Disciplina: Desenvolvimento Rápido de Aplicações em Python (RAD)
-- Tipo: projeto individual
-- Stack: Flask + SQLAlchemy + SQLite + Jinja + pytest + Playwright
+- **Nome do Projeto:** Sistema de Gerenciamento de Timetables
+- **Equipe:** Paulo Henrique Lima da Silva - 202208731015; Luis Filipe da Silva França - 202303761791; Octacilio Ferreira dos Santos - 202508435251; Hittalo Henrick Souza Pinto - 202402334311
+- **Data de Início:** 16/03/2026
+- **Data de Conclusão:** 18/05/2026 (prevista)
 
 ## 2. Introdução
 
-O projeto resolve o problema de gestão manual de grade e presença, centralizando:
+### Objetivo do Projeto
 
-- cadastro da estrutura acadêmica;
-- oferta de turmas com validações;
-- matrícula de alunos com controle de capacidade;
-- chamada por professor com regras de data.
+O projeto tem como objetivo desenvolver uma aplicação web para organizar grade acadêmica, alocação de turmas e controle de presença em sala de aula. A solução substitui processos manuais, reduz conflitos de horário e melhora o acompanhamento das turmas por perfis distintos de usuário (`admin` e `professor`).
 
-## 3. Fase 1 (Planejamento)
+## 3. Planejamento de Requisitos (Fase 1 do RAD)
 
-- escopo funcional e não funcional definido;
-- tecnologia escolhida e justificada;
-- modelo relacional inicial aprovado.
+### Requisitos Funcionais
 
-Documento de apoio: `docs/Planejamento de Requisitos.md`.
+- O sistema deve permitir autenticação de usuários por login e senha.
+- O sistema deve permitir CRUD de salas.
+- O sistema deve permitir CRUD de disciplinas.
+- O sistema deve permitir CRUD de professores.
+- O sistema deve permitir CRUD de alunos.
+- O sistema deve permitir criação, edição e exclusão de alocações de turma/horário.
+- O sistema deve permitir matrícula de alunos em turmas.
+- O sistema deve permitir registro de presença por turma e data.
+- O sistema deve diferenciar permissões por perfil de acesso (`admin` e `professor`).
 
-## 4. Fase 2 (Design do usuário)
+### Requisitos Não Funcionais
 
-- fluxos separados por perfil (`admin` e `professor`);
-- telas de CRUD, alocação e chamada;
-- refinamentos de usabilidade orientados por testes.
+- A aplicação deve ser desenvolvida em Python com framework web.
+- O banco de dados deve ser relacional e com integridade referencial.
+- Os formulários devem validar obrigatoriedade, formato e consistência dos dados.
+- O sistema deve apresentar mensagens claras de sucesso/erro para cada operação.
+- O código deve ser organizado em módulos para facilitar manutenção e evolução.
 
-Documento de apoio: `docs/projeto/documento_prototipo_interface.md`.
+### Ferramentas Utilizadas
 
-## 5. Fase 3 (Construção)
+- Linguagem: Python 3
+- Framework web: Flask
+- Persistência: SQLAlchemy
+- Banco de dados: SQLite
+- Frontend: HTML, CSS e JavaScript
+- Versionamento: Git
 
-Implementações concluídas:
+## 4. Design do Usuário (Fase 2 do RAD)
 
-- backend modular (`auth`, `admin`, `professor`, `helpers`);
-- modelagem relacional completa (`user`, `sala`, `disciplina`, `timetable`, `aluno`, `matricula`, `presenca`);
-- validações de regra de negócio (conflito, capacidade, datas);
-- interface integrada e responsiva.
+### Protótipos de Interface
 
-Documento de apoio: `docs/projeto/documento_modelagem.md`.
+Foram estruturados fluxos de interface para os dois perfis principais:
 
-## 6. Fase 4 (Transição e validação)
+- Login e navegação inicial por perfil.
+- Painel administrativo para CRUDs e alocações.
+- Painel do professor para visualização de turmas e chamada.
 
-## 6.1 Testes executados
+Os protótipos evoluíram para as telas implementadas em `templates/`, com foco em clareza visual e redução de passos nas operações principais.
 
-- Unitário/integração (`pytest`): **21 passed**
-- E2E (Playwright): **5 passed**
+### Discussões de Design
 
-## 6.2 Evidências
+Durante os ciclos iterativos da fase RAD, as principais discussões envolveram:
 
-- vídeo funcional completo: `docs/evidencias/video_teste_funcionalidades.webm`
-- relatório E2E: `docs/evidencias/playwright-report/index.html`
+- Separação de responsabilidades entre menus de administrador e professor.
+- Simplificação da entrada de horário no formato 24h.
+- Melhoria da leitura de dados (listas de alunos, turmas e presenças).
+- Redução de ruído visual para acelerar tarefas frequentes de cadastro e chamada.
 
-## 6.3 Limpeza e simplificação
+### Decisões Tomadas
 
-- fluxo de professor simplificado para login por `username`;
-- remoção de excesso visual e padronização de formulários;
-- documentação consolidada e atualizada.
+- Acesso baseado em papéis para restringir funcionalidades sensíveis.
+- Organização do painel administrativo por entidades (salas, disciplinas, professores, alunos, matrículas e horários).
+- Fluxo de presença concentrado na tela da turma do professor, com validação de data.
+- Padronização de formulários e mensagens de feedback para todas as operações.
 
-## 7. Conclusão
+## 5. Construção (Fase 3 do RAD)
 
-O sistema está pronto para apresentação final, com:
+### Desenvolvimento
 
-- funcionalidades centrais completas;
-- regras de negócio consistentes;
-- testes automatizados cobrindo backend e frontend;
-- documentação técnica final consolidada.
+O desenvolvimento foi incremental, iniciando pela base de autenticação e estrutura do projeto, seguido por:
 
-## 8. Referências internas
+1. Modelagem e migrações do banco de dados.
+2. Implementação de CRUDs.
+3. Implementação de alocação de horários e matrícula.
+4. Implementação do fluxo de chamada por professor.
+5. Refinamentos de validação e usabilidade.
 
-- `README.md`
-- `docs/documentacao_geral_final.md`
-- `docs/evidencias_testes.md`
+Desafios técnicos principais:
+
+- Evitar conflito de horário para sala e professor na mesma faixa de tempo.
+- Impedir matrícula acima da capacidade da sala.
+- Validar coerência da data da chamada com o dia da turma.
+- Preservar integridade ao impedir exclusões com vínculos ativos.
+
+### Distribuição das Tarefas
+
+A equipe trabalhou por frentes de desenvolvimento e validação, com revisão coletiva do resultado final:
+
+- Levantamento de requisitos e consolidação do escopo.
+- Modelagem de dados e migrações.
+- Backend (rotas, regras de negócio e validações).
+- Frontend (templates e padronização visual).
+- Testes funcionais manuais e ajustes finais de documentação.
+
+### Integração Contínua
+
+A integração foi realizada por versionamento em Git, com commits incrementais e validação contínua das funcionalidades após cada conjunto de alterações. Não foi configurado pipeline CI automatizado; a integração foi conduzida localmente com execução da aplicação e testes de fluxo.
+
+## 6. Transição (Fase 4 do RAD)
+
+### Testes Realizados
+
+Foram executados testes funcionais manuais, cobrindo os fluxos críticos:
+
+- Autenticação e redirecionamento por perfil.
+- CRUD completo de salas, disciplinas, professores e alunos.
+- Criação e edição de horários com bloqueio de conflitos.
+- Matrícula com validação de capacidade e choque de horário.
+- Registro de presença com validação de data e atualização de registros existentes.
+- Bloqueio de exclusão quando existem dependências relacionais.
+
+Também foi criada uma suíte automatizada de testes em Python com `pytest`, cobrindo:
+
+- login com credencial inválida e login válido de administrador;
+- fluxo completo de CRUD de sala (criar, editar e excluir);
+- detecção de conflito de alocação por sobreposição de sala;
+- bloqueio de matrícula quando capacidade da sala é atingida;
+- bloqueio de chamada em data futura;
+- registro de chamada em data válida.
+
+Resultado da execução em 27/04/2026:
+
+- Comando: `.venv/bin/pytest -q`
+- Saída: `7 passed in 27.17s`
+
+### Feedback do Usuário
+
+Os testes de uso com foco acadêmico indicaram necessidade de simplificação dos formulários e mensagens mais diretas. Como resposta, foram aplicados ajustes de usabilidade, principalmente no fluxo de professor e na padronização visual das telas de cadastro.
+
+### Implantação
+
+O sistema foi implantado em ambiente local para validação final (execução via Flask, banco SQLite no diretório `instance/`).
+
+## 7. Conclusões
+
+### Resultados Alcancados
+
+O projeto atendeu ao objetivo de entregar uma aplicação RAD funcional com interface web, backend em Python, banco relacional e operações de CRUD com validações de negócio.
+
+### Aprendizados
+
+Os principais aprendizados da equipe envolveram:
+
+- Aplicação prática das fases do RAD em ciclos curtos.
+- Importância de validações de regra de negócio além das validações de formulário.
+- Cuidado com integridade de dados em operações de exclusão e atualização.
+- Ganho de produtividade com organização modular do código.
+
+### Próximos Passos (Opcional)
+
+- Expandir a suíte automatizada para cobrir todos os CRUDs e cenários negativos adicionais.
+- Publicar a aplicação em ambiente de hospedagem.
+- Adicionar relatórios gerenciais (por sala, disciplina e frequência).
+- Incluir exportação de dados em formatos como CSV/PDF.
+
+## 8. Anexos (Opcional)
+
+### Código Fonte
+
+- Repositório remoto: não informado no momento.
+
+## Formato Geral
+
+- **Fonte:** Arial ou Calibri, tamanho 12.
+- **Espaçamento:** 1.5 entre linhas.
+- **Alinhamento:** Justificado.
+- **Citações e Referências:** utilizar padrão acadêmico (ABNT ou APA) na versão final de entrega.
