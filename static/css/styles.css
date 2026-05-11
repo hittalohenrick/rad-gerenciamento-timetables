@@ -281,6 +281,60 @@ button {
   font-size: 0.9rem;
 }
 
+.dashboard-stats-insights {
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+}
+
+.stat-card-insight {
+  background: linear-gradient(165deg, rgba(15, 39, 65, 0.95) 0%, rgba(16, 28, 45, 0.95) 100%);
+  border-color: rgba(17, 197, 177, 0.28);
+}
+
+.insight-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--ink-2);
+}
+
+.insight-list li {
+  margin-bottom: 0.45rem;
+}
+
+.insight-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  background: rgba(47, 123, 255, 0.18);
+  border: 1px solid rgba(47, 123, 255, 0.4);
+  color: #dbe8ff;
+}
+
+.chart-shell .card-body {
+  min-height: 300px;
+  display: flex;
+  align-items: stretch;
+}
+
+.chart-shell canvas {
+  width: 100% !important;
+  height: 240px !important;
+}
+
+.chart-empty {
+  width: 100%;
+  margin: auto 0;
+  text-align: center;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
 .table {
   margin-bottom: 0;
   border-collapse: separate;

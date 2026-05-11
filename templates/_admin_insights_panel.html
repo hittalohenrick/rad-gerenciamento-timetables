@@ -1,0 +1,183 @@
+<div class="card mb-4">
+  <div class="card-header">Insights para Decisao</div>
+  <div class="card-body">
+    <p class="page-lead mb-3">Indicadores para apoiar distribuicao de turmas, carga docente e uso de salas.</p>
+
+    <div class="dashboard-stats dashboard-stats-insights mb-3">
+      <div class="stat-card stat-card-insight">
+        <h3>{{ "%.1f"|format(insights.summary.ocupacao_geral) }}%</h3>
+        <p>Ocupacao Geral</p>
+      </div>
+      <div class="stat-card stat-card-insight">
+        <h3>{{ insights.summary.turmas_sem_alunos }}</h3>
+        <p>Turmas Sem Alunos</p>
+      </div>
+      <div class="stat-card stat-card-insight">
+        <h3>{{ insights.summary.turmas_criticas }}</h3>
+        <p>Turmas Criticas</p>
+      </div>
+      <div class="stat-card stat-card-insight">
+        <h3>{{ insights.summary.professores_sobrecarregados }}</h3>
+        <p>Professores em Sobrecarga</p>
+      </div>
+      <div class="stat-card stat-card-insight">
+        <h3>{{ insights.summary.slots_monitorados }}</h3>
+        <p>Slots Monitorados</p>
+      </div>
+      <div class="stat-card stat-card-insight">
+        <h3>{{ insights.summary.salas_ociosas }}</h3>
+        <p>Salas Ociosas</p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-lg-6 mb-3">
+        <h6 class="mb-2">Alertas Automaticos</h6>
+        {% for alert in insights.alerts %}
+        <div class="alert alert-{{ alert.level }} py-2 mb-2">{{ alert.message }}</div>
+        {% endfor %}
+      </div>
+      <div class="col-lg-6 mb-3">
+        <h6 class="mb-2">Recomendacoes</h6>
+        <ul class="insight-list">
+          {% for recommendation in insights.recommendations %}
+          <li>{{ recommendation }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-xl-6 mb-3">
+        <div class="table-shell surface-soft">
+          <h6 class="mb-3">Carga por Professor (limite: {{ insights.limite_sobrecarga }} turmas)</h6>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Professor</th>
+                  <th>Turmas</th>
+                  <th>Alunos</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in insights.professores_carga %}
+                <tr>
+                  <td>{{ row.username }}</td>
+                  <td>{{ row.turmas }}</td>
+                  <td>{{ row.alunos }}</td>
+                  <td><span class="insight-pill">{{ row.status }}</span></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-xl-6 mb-3">
+        <div class="table-shell surface-soft">
+          <h6 class="mb-3">Uso por Sala</h6>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Sala</th>
+                  <th>Turmas</th>
+                  <th>Alunos</th>
+                  <th>Ocupacao</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in insights.salas_utilizacao %}
+                <tr>
+                  <td>{{ row.nome }}</td>
+                  <td>{{ row.turmas }}</td>
+                  <td>{{ row.alunos }}</td>
+                  <td>{{ "%.1f"|format(row.ocupacao) }}%</td>
+                  <td><span class="insight-pill">{{ row.status }}</span></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-xl-6 mb-3">
+        <div class="table-shell surface-soft">
+          <h6 class="mb-3">Disciplinas com Maior Demanda</h6>
+          {% if insights.disciplinas_demanda %}
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Disciplina</th>
+                  <th>Turmas</th>
+                  <th>Alunos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in insights.disciplinas_demanda %}
+                <tr>
+                  <td>{{ row.nome }}</td>
+                  <td>{{ row.turmas }}</td>
+                  <td>{{ row.alunos }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="mb-0 text-muted">Sem dados de demanda por disciplina.</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-xl-6 mb-3">
+        <div class="table-shell surface-soft">
+          <h6 class="mb-3">Horarios Concorridos e Slots Recomendados</h6>
+          {% if insights.slots_mais_concorridos %}
+          <div class="table-responsive">
+            <table class="table table-hover mb-3">
+              <thead>
+                <tr>
+                  <th>Dia</th>
+                  <th>Horario</th>
+                  <th>Turmas</th>
+                  <th>Salas Livres</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in insights.slots_mais_concorridos %}
+                <tr>
+                  <td>{{ row.dia }}</td>
+                  <td>{{ row.intervalo }}</td>
+                  <td>{{ row.turmas }}</td>
+                  <td>{{ row.salas_livres }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted">Sem horarios alocados para analise.</p>
+          {% endif %}
+
+          <h6 class="mt-2 mb-2">Melhores slots para nova turma</h6>
+          {% if insights.slots_recomendados %}
+          <ul class="insight-list mb-0">
+            {% for row in insights.slots_recomendados %}
+            <li>{{ row.dia }} ({{ row.intervalo }}): {{ row.salas_livres }} sala(s) livre(s).</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="mb-0 text-muted">Sem dados suficientes para sugerir slots.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

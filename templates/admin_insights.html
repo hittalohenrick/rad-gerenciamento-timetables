@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Insights Admin{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Inteligencia Academica</p>
+      <h1>Insights Administrativos</h1>
+      <p class="page-lead">Analise completa para apoiar decisoes de alocacao e equilibrio operacional.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn-secondary">Voltar ao Dashboard</a>
+      <a href="{{ url_for('main.new_timetable') }}" class="btn btn-success">Nova Alocacao</a>
+    </div>
+  </div>
+
+  <div class="dashboard-stats">
+    <div class="stat-card"><h3>{{ salas|length }}</h3><p>Salas</p></div>
+    <div class="stat-card"><h3>{{ professores|length }}</h3><p>Professores</p></div>
+    <div class="stat-card"><h3>{{ disciplinas|length }}</h3><p>Disciplinas</p></div>
+    <div class="stat-card"><h3>{{ alunos|length }}</h3><p>Alunos</p></div>
+    <div class="stat-card"><h3>{{ matriculas_count }}</h3><p>Matriculas</p></div>
+    <div class="stat-card"><h3>{{ timetables|length }}</h3><p>Turmas Ativas</p></div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-xl-6 mb-3">
+      <div class="card h-100 chart-shell">
+        <div class="card-header">Ocupacao por Sala (%)</div>
+        <div class="card-body">
+          <canvas id="chartRoomOccupancy" height="230"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-6 mb-3">
+      <div class="card h-100 chart-shell">
+        <div class="card-header">Carga de Turmas por Professor</div>
+        <div class="card-body">
+          <canvas id="chartProfessorLoad" height="230"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-xl-6 mb-3">
+      <div class="card h-100 chart-shell">
+        <div class="card-header">Distribuicao de Turmas por Dia</div>
+        <div class="card-body">
+          <canvas id="chartTimetablesByDay" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-6 mb-3">
+      <div class="card h-100 chart-shell">
+        <div class="card-header">Status de Utilizacao das Salas</div>
+        <div class="card-body">
+          <canvas id="chartRoomStatus" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include "_admin_insights_panel.html" %}
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+  (() => {
+    const chartData = {{ chart_data|tojson }};
+    if (typeof Chart === "undefined") {
+      return;
+    }
+
+    Chart.defaults.color = "#cfe0ff";
+    Chart.defaults.font.family = "Source Sans 3, Trebuchet MS, sans-serif";
+    Chart.defaults.borderColor = "rgba(159, 178, 205, 0.22)";
+
+    const showEmpty = (canvasId, message) => {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) {
+        return;
+      }
+      const parent = canvas.parentElement;
+      parent.innerHTML = `<p class="chart-empty mb-0">${message}</p>`;
+    };
+
+    const buildBar = (canvasId, labels, values, color, border, maxValue) => {
+      if (!labels || labels.length === 0) {
+        showEmpty(canvasId, "Sem dados suficientes para este grafico.");
+        return;
+      }
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) {
+        return;
+      }
+      new Chart(canvas, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              data: values,
+              backgroundColor: color,
+              borderColor: border,
+              borderWidth: 1.5,
+              borderRadius: 6,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              suggestedMax: maxValue,
+              grid: { color: "rgba(159, 178, 205, 0.12)" },
+            },
+            x: {
+              ticks: { maxRotation: 35, minRotation: 0 },
+              grid: { display: false },
+            },
+          },
+        },
+      });
+    };
+
+    buildBar(
+      "chartRoomOccupancy",
+      chartData.room_occupancy.labels,
+      chartData.room_occupancy.values,
+      "rgba(17, 197, 177, 0.42)",
+      "rgba(17, 197, 177, 0.9)",
+      100,
+    );
+
+    buildBar(
+      "chartProfessorLoad",
+      chartData.professor_load.labels,
+      chartData.professor_load.values,
+      "rgba(47, 123, 255, 0.42)",
+      "rgba(47, 123, 255, 0.9)",
+      null,
+    );
+
+    buildBar(
+      "chartTimetablesByDay",
+      chartData.timetables_by_day.labels,
+      chartData.timetables_by_day.values,
+      "rgba(244, 182, 66, 0.42)",
+      "rgba(244, 182, 66, 0.92)",
+      null,
+    );
+
+    const statusLabels = chartData.room_status.labels;
+    const statusValues = chartData.room_status.values;
+    if (!statusLabels || statusLabels.length === 0 || statusValues.every((item) => item === 0)) {
+      showEmpty("chartRoomStatus", "Sem dados suficientes para este grafico.");
+      return;
+    }
+
+    const statusCanvas = document.getElementById("chartRoomStatus");
+    if (!statusCanvas) {
+      return;
+    }
+
+    new Chart(statusCanvas, {
+      type: "doughnut",
+      data: {
+        labels: statusLabels,
+        datasets: [
+          {
+            data: statusValues,
+            backgroundColor: [
+              "rgba(242, 95, 122, 0.75)",
+              "rgba(34, 197, 94, 0.72)",
+              "rgba(244, 182, 66, 0.72)",
+              "rgba(159, 178, 205, 0.6)",
+              "rgba(47, 123, 255, 0.65)",
+            ],
+            borderColor: "rgba(13, 20, 32, 0.9)",
+            borderWidth: 1.2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { usePointStyle: true, pointStyle: "circle" },
+          },
+        },
+      },
+    });
+  })();
+</script>
+{% endblock %}

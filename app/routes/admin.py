@@ -1,5 +1,6 @@
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import login_required
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from app import db
@@ -33,10 +34,233 @@ from .helpers import (
     username_exists,
 )
 
-@bp.route("/admin")
-@login_required
-@admin_required
-def admin_dashboard():
+def _day_sort_value(day_label):
+    label = (day_label or "").lower()
+    if label.startswith("seg"):
+        return 1
+    if label.startswith("ter"):
+        return 2
+    if label.startswith("qua"):
+        return 3
+    if label.startswith("qui"):
+        return 4
+    if label.startswith("sex"):
+        return 5
+    if label.startswith("sab") or "bado" in label:
+        return 6
+    if label.startswith("dom"):
+        return 7
+    return 99
+
+
+def _build_admin_insights(salas, professores, timetables):
+    total_salas = len(salas)
+    matriculas_por_turma = dict(
+        db.session.query(Matricula.timetable_id, func.count(Matricula.id))
+        .group_by(Matricula.timetable_id)
+        .all()
+    )
+
+    room_usage_map = {
+        sala.id: {
+            "nome": sala.nome,
+            "turmas": 0,
+            "capacidade_total": 0,
+            "alunos": 0,
+            "ocupacao": 0.0,
+            "status": "Sem uso",
+        }
+        for sala in salas
+    }
+    professor_load_map = {
+        professor.id: {
+            "username": professor.username,
+            "turmas": 0,
+            "alunos": 0,
+            "is_overloaded": False,
+            "status": "Ok",
+        }
+        for professor in professores
+    }
+    disciplina_demand_map = {}
+    slot_usage_map = {}
+
+    total_capacity_slots = 0
+    turmas_sem_alunos = 0
+    turmas_criticas = 0
+
+    for timetable in timetables:
+        matriculados = int(matriculas_por_turma.get(timetable.id, 0))
+        capacidade = timetable.sala.capacidade if timetable.sala else 0
+        ocupacao = round((matriculados / capacidade) * 100, 1) if capacidade else 0.0
+        intervalo = f"{timetable.hora_inicio.strftime('%H:%M')} - {timetable.hora_fim.strftime('%H:%M')}"
+
+        total_capacity_slots += capacidade
+        if matriculados == 0:
+            turmas_sem_alunos += 1
+        if capacidade and ocupacao >= 90:
+            turmas_criticas += 1
+
+        if timetable.sala_id in room_usage_map:
+            room_usage = room_usage_map[timetable.sala_id]
+            room_usage["turmas"] += 1
+            room_usage["capacidade_total"] += capacidade
+            room_usage["alunos"] += matriculados
+
+        if timetable.professor_id in professor_load_map:
+            professor_load = professor_load_map[timetable.professor_id]
+            professor_load["turmas"] += 1
+            professor_load["alunos"] += matriculados
+
+        disciplina_nome = timetable.disciplina.nome if timetable.disciplina else "Disciplina removida"
+        disciplina_demand = disciplina_demand_map.setdefault(
+            timetable.disciplina_id,
+            {"nome": disciplina_nome, "turmas": 0, "alunos": 0},
+        )
+        disciplina_demand["turmas"] += 1
+        disciplina_demand["alunos"] += matriculados
+
+        slot_key = (timetable.dia, intervalo)
+        slot_usage = slot_usage_map.setdefault(
+            slot_key,
+            {"dia": timetable.dia, "intervalo": intervalo, "turmas": 0, "salas_livres": 0},
+        )
+        slot_usage["turmas"] += 1
+
+    total_matriculas = sum(matriculas_por_turma.values())
+    ocupacao_geral = round((total_matriculas / total_capacity_slots) * 100, 1) if total_capacity_slots else 0.0
+
+    media_turmas_por_professor = (len(timetables) / len(professores)) if professores else 0
+    limite_sobrecarga = max(2, int(media_turmas_por_professor + 1))
+
+    for professor_load in professor_load_map.values():
+        if professor_load["turmas"] > limite_sobrecarga:
+            professor_load["is_overloaded"] = True
+            professor_load["status"] = "Sobrecarga"
+        elif professor_load["turmas"] == 0:
+            professor_load["status"] = "Sem turmas"
+
+    for room_usage in room_usage_map.values():
+        if room_usage["capacidade_total"] > 0:
+            room_usage["ocupacao"] = round((room_usage["alunos"] / room_usage["capacidade_total"]) * 100, 1)
+        if room_usage["turmas"] == 0:
+            room_usage["status"] = "Sem uso"
+        elif room_usage["ocupacao"] >= 90:
+            room_usage["status"] = "Critica"
+        elif room_usage["ocupacao"] < 40:
+            room_usage["status"] = "Ociosa"
+        else:
+            room_usage["status"] = "Saudavel"
+
+    slot_usage_list = []
+    for slot_usage in slot_usage_map.values():
+        slot_usage["salas_livres"] = max(0, total_salas - slot_usage["turmas"])
+        slot_usage_list.append(slot_usage)
+
+    professores_carga = sorted(
+        professor_load_map.values(),
+        key=lambda row: (-row["turmas"], -row["alunos"], row["username"].lower()),
+    )
+    salas_utilizacao = sorted(
+        room_usage_map.values(),
+        key=lambda row: (
+            0 if row["status"] == "Critica" else 1 if row["status"] == "Ociosa" else 2,
+            -row["ocupacao"],
+            row["nome"].lower(),
+        ),
+    )
+    disciplinas_demanda = sorted(
+        disciplina_demand_map.values(),
+        key=lambda row: (-row["alunos"], -row["turmas"], row["nome"].lower()),
+    )[:5]
+    slots_mais_concorridos = sorted(
+        slot_usage_list,
+        key=lambda row: (-row["turmas"], _day_sort_value(row["dia"]), row["intervalo"]),
+    )[:5]
+    slots_recomendados = sorted(
+        slot_usage_list,
+        key=lambda row: (-row["salas_livres"], row["turmas"], _day_sort_value(row["dia"]), row["intervalo"]),
+    )[:3]
+
+    professores_sobrecarregados = [row for row in professores_carga if row["is_overloaded"]]
+    salas_ociosas = [row for row in salas_utilizacao if row["status"] == "Ociosa"]
+    turmas_criticas_slots = [row for row in slot_usage_list if row["turmas"] >= max(2, total_salas)]
+
+    alerts = []
+    if not total_salas:
+        alerts.append({"level": "danger", "message": "Nao ha salas cadastradas para planejamento."})
+    if not professores:
+        alerts.append({"level": "danger", "message": "Nao ha professores cadastrados para alocar turmas."})
+    if turmas_sem_alunos > 0:
+        alerts.append(
+            {
+                "level": "warning",
+                "message": f"{turmas_sem_alunos} turma(s) estao sem alunos alocados.",
+            }
+        )
+    if turmas_criticas > 0:
+        alerts.append(
+            {
+                "level": "warning",
+                "message": f"{turmas_criticas} turma(s) estao com ocupacao acima de 90%.",
+            }
+        )
+    if professores_sobrecarregados:
+        alerts.append(
+            {
+                "level": "warning",
+                "message": f"{len(professores_sobrecarregados)} professor(es) estao acima do limite de carga ({limite_sobrecarga} turmas).",
+            }
+        )
+    if ocupacao_geral < 40 and len(timetables) > 0:
+        alerts.append({"level": "info", "message": "Capacidade geral baixa: ha margem para abrir novas turmas."})
+    if not alerts:
+        alerts.append({"level": "success", "message": "Operacao estavel: sem alertas criticos no momento."})
+
+    recommendations = []
+    if slots_recomendados and total_salas > 0:
+        top_slot = slots_recomendados[0]
+        recommendations.append(
+            f"Priorizar novas turmas em {top_slot['dia']} ({top_slot['intervalo']}), com {top_slot['salas_livres']} sala(s) livre(s)."
+        )
+    if salas_ociosas:
+        recommendations.append(
+            f"Revisar uso de {len(salas_ociosas)} sala(s) ociosa(s) para redistribuir turmas."
+        )
+    if professores_sobrecarregados:
+        recommendations.append(
+            f"Redistribuir turmas de {len(professores_sobrecarregados)} professor(es) para reduzir sobrecarga."
+        )
+    if turmas_sem_alunos > 0:
+        recommendations.append("Avaliar consolidacao ou campanha de matricula para turmas sem alunos.")
+    if turmas_criticas_slots:
+        recommendations.append("Analisar os horarios mais concorridos para evitar gargalos futuros.")
+    if not recommendations:
+        recommendations.append("Manter monitoramento semanal para antecipar desequilibrios.")
+
+    summary = {
+        "ocupacao_geral": ocupacao_geral,
+        "turmas_sem_alunos": turmas_sem_alunos,
+        "turmas_criticas": turmas_criticas,
+        "professores_sobrecarregados": len(professores_sobrecarregados),
+        "slots_monitorados": len(slot_usage_list),
+        "salas_ociosas": len(salas_ociosas),
+    }
+
+    return {
+        "summary": summary,
+        "alerts": alerts,
+        "recommendations": recommendations,
+        "professores_carga": professores_carga,
+        "salas_utilizacao": salas_utilizacao,
+        "disciplinas_demanda": disciplinas_demanda,
+        "slots_mais_concorridos": slots_mais_concorridos,
+        "slots_recomendados": slots_recomendados,
+        "limite_sobrecarga": limite_sobrecarga,
+    }
+
+
+def _load_admin_core_data():
     salas = Sala.query.order_by(Sala.nome.asc()).all()
     professores = User.query.filter_by(role="professor").order_by(User.username.asc()).all()
     disciplinas = Disciplina.query.order_by(Disciplina.nome.asc()).all()
@@ -50,17 +274,87 @@ def admin_dashboard():
         .order_by(Timetable.dia.asc(), Timetable.hora_inicio.asc())
         .all()
     )
+    return {
+        "salas": salas,
+        "professores": professores,
+        "disciplinas": disciplinas,
+        "alunos": alunos,
+        "timetables": timetables,
+    }
+
+
+def _build_admin_chart_data(insights, timetables):
+    day_counts = {}
+    for timetable in timetables:
+        day_counts[timetable.dia] = day_counts.get(timetable.dia, 0) + 1
+
+    sorted_days = sorted(day_counts.items(), key=lambda row: _day_sort_value(row[0]))
+    day_labels = [row[0] for row in sorted_days]
+    day_values = [row[1] for row in sorted_days]
+
+    top_room_rows = insights["salas_utilizacao"][:8]
+    room_labels = [row["nome"] for row in top_room_rows]
+    room_occupancy = [row["ocupacao"] for row in top_room_rows]
+
+    top_professor_rows = insights["professores_carga"][:8]
+    professor_labels = [row["username"] for row in top_professor_rows]
+    professor_load = [row["turmas"] for row in top_professor_rows]
+
+    status_order = ["Critica", "Saudavel", "Ociosa", "Sem uso", "Outros"]
+    room_status_counts = {key: 0 for key in status_order}
+    for row in insights["salas_utilizacao"]:
+        status = row["status"] if row["status"] in room_status_counts else "Outros"
+        room_status_counts[status] += 1
+
+    status_labels = status_order
+    status_values = [room_status_counts[label] for label in status_labels]
+
+    return {
+        "room_occupancy": {"labels": room_labels, "values": room_occupancy},
+        "professor_load": {"labels": professor_labels, "values": professor_load},
+        "room_status": {"labels": status_labels, "values": status_values},
+        "timetables_by_day": {"labels": day_labels, "values": day_values},
+    }
+
+
+def _load_admin_dashboard_data():
+    context = _load_admin_core_data()
+    context["matriculas_count"] = Matricula.query.count()
+    return context
+
+
+def _load_admin_insights_data():
+    context = _load_admin_core_data()
+    insights = _build_admin_insights(
+        salas=context["salas"],
+        professores=context["professores"],
+        timetables=context["timetables"],
+    )
+    context["insights"] = insights
+    context["chart_data"] = _build_admin_chart_data(insights, context["timetables"])
+    context["matriculas_count"] = Matricula.query.count()
+    return context
+
+
+@bp.route("/admin")
+@login_required
+@admin_required
+def admin_dashboard():
+    context = _load_admin_dashboard_data()
     delete_form = DeleteForm()
     return render_template(
         "admin_dashboard.html",
-        salas=salas,
-        professores=professores,
-        disciplinas=disciplinas,
-        alunos=alunos,
-        timetables=timetables,
-        matriculas_count=Matricula.query.count(),
         delete_form=delete_form,
+        **context,
     )
+
+
+@bp.route("/admin/insights")
+@login_required
+@admin_required
+def admin_insights():
+    context = _load_admin_insights_data()
+    return render_template("admin_insights.html", **context)
 
 @bp.route("/horarios")
 @login_required
