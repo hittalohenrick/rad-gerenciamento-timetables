@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Grades Curriculares{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Base Academica</p>
+      <h1>Grades Curriculares</h1>
+    </div>
+    <a href="{{ url_for('main.new_grade') }}" class="btn btn-primary">Nova Grade</a>
+  </div>
+
+  <div class="surface table-shell">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Curso</th>
+            <th>Nome</th>
+            <th>Status</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for grade in grades %}
+          <tr>
+            <td>{{ grade.curso.nome if grade.curso else 'Curso removido' }}</td>
+            <td>{{ grade.nome }}</td>
+            <td>{{ 'Ativa' if grade.ativa else 'Inativa' }}</td>
+            <td class="actions-cell">
+              <a href="{{ url_for('main.grade_items', grade_id=grade.id) }}" class="btn btn-sm btn-secondary">Itens</a>
+              <a href="{{ url_for('main.edit_grade', id=grade.id) }}" class="btn btn-sm btn-edit">Editar</a>
+              <form
+                method="POST"
+                action="{{ url_for('main.delete_grade', id=grade.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Tem certeza que deseja deletar esta grade?');"
+              >
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

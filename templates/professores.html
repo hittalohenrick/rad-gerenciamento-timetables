@@ -16,13 +16,21 @@
         <thead>
           <tr>
             <th>Login</th>
-            <th>Ações</th>
+            <th>Disciplinas Aptas</th>
+            <th>Acoes</th>
           </tr>
         </thead>
         <tbody>
           {% for professor in professores %}
           <tr>
             <td>{{ professor.username }}</td>
+            <td>
+              {% if professor.disciplinas_aptas %}
+              {{ professor.disciplinas_aptas | map(attribute='nome') | join(', ') }}
+              {% else %}
+              <span class="text-muted">Nenhuma aptidao cadastrada</span>
+              {% endif %}
+            </td>
             <td class="actions-cell">
               <a href="{{ url_for('main.edit_professor', id=professor.id) }}" class="btn btn-sm btn-edit">Editar</a>
               <form

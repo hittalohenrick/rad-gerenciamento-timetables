@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Cursos{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Base Academica</p>
+      <h1>Cursos</h1>
+    </div>
+    <a href="{{ url_for('main.new_curso') }}" class="btn btn-primary">Novo Curso</a>
+  </div>
+
+  <div class="surface table-shell">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Codigo</th>
+            <th>Periodos</th>
+            <th>Status</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for curso in cursos %}
+          <tr>
+            <td>{{ curso.nome }}</td>
+            <td>{{ curso.codigo }}</td>
+            <td>{{ curso.quantidade_periodos }}</td>
+            <td>{{ 'Ativo' if curso.ativo else 'Inativo' }}</td>
+            <td class="actions-cell">
+              <a href="{{ url_for('main.edit_curso', id=curso.id) }}" class="btn btn-sm btn-edit">Editar</a>
+              <form
+                method="POST"
+                action="{{ url_for('main.delete_curso', id=curso.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Tem certeza que deseja deletar este curso?');"
+              >
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

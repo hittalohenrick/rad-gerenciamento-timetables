@@ -1,7 +1,54 @@
 from datetime import time
 
 from app import db
-from app.models import Aluno, Disciplina, Matricula, Sala, Timetable
+from app.models import (
+    Aluno,
+    Curso,
+    Disciplina,
+    GradeCurricular,
+    GradeCurricularItem,
+    Matricula,
+    Sala,
+    Timetable,
+    Turma,
+)
+
+
+def _setup_academic_catalog():
+    curso = Curso(nome="Analise e Desenvolvimento de Sistemas", codigo="ADS", ativo=True, quantidade_periodos=8)
+    disc_a = Disciplina(nome="Algoritmos", codigo="ALG001")
+    disc_b = Disciplina(nome="Banco", codigo="BAN001")
+    db.session.add_all([curso, disc_a, disc_b])
+    db.session.flush()
+
+    grade = GradeCurricular(nome="Grade ADS 2026", curso_id=curso.id, ativa=True)
+    db.session.add(grade)
+    db.session.flush()
+
+    db.session.add_all(
+        [
+            GradeCurricularItem(grade_id=grade.id, disciplina_id=disc_a.id, periodo=1),
+            GradeCurricularItem(grade_id=grade.id, disciplina_id=disc_b.id, periodo=1),
+        ]
+    )
+
+    turma_a = Turma(
+        curso_id=curso.id,
+        codigo="ADS-1A",
+        semestre_letivo="2026.1",
+        periodo=1,
+        quantidade_alunos=40,
+    )
+    turma_b = Turma(
+        curso_id=curso.id,
+        codigo="ADS-1B",
+        semestre_letivo="2026.1",
+        periodo=1,
+        quantidade_alunos=40,
+    )
+    db.session.add_all([turma_a, turma_b])
+    db.session.commit()
+    return disc_a, disc_b, turma_a, turma_b
 
 
 def test_admin_dashboard_hides_insights_panel(client, login, user_factory):
@@ -11,9 +58,8 @@ def test_admin_dashboard_hides_insights_panel(client, login, user_factory):
 
     sala_critica = Sala(nome="Sala Critica", capacidade=2)
     sala_regular = Sala(nome="Sala Regular", capacidade=10)
-    disc_a = Disciplina(nome="Algoritmos", codigo="ALG001")
-    disc_b = Disciplina(nome="Banco", codigo="BAN001")
-    db.session.add_all([sala_critica, sala_regular, disc_a, disc_b])
+    disc_a, disc_b, turma_a, turma_b = _setup_academic_catalog()
+    db.session.add_all([sala_critica, sala_regular])
     db.session.commit()
 
     t1 = Timetable(
@@ -23,6 +69,7 @@ def test_admin_dashboard_hides_insights_panel(client, login, user_factory):
         sala_id=sala_critica.id,
         professor_id=prof_1.id,
         disciplina_id=disc_a.id,
+        turma_id=turma_a.id,
     )
     t2 = Timetable(
         dia="Terca",
@@ -31,6 +78,7 @@ def test_admin_dashboard_hides_insights_panel(client, login, user_factory):
         sala_id=sala_regular.id,
         professor_id=prof_1.id,
         disciplina_id=disc_b.id,
+        turma_id=turma_b.id,
     )
     t3 = Timetable(
         dia="Quarta",
@@ -39,6 +87,7 @@ def test_admin_dashboard_hides_insights_panel(client, login, user_factory):
         sala_id=sala_regular.id,
         professor_id=prof_1.id,
         disciplina_id=disc_a.id,
+        turma_id=turma_a.id,
     )
     t4 = Timetable(
         dia="Quinta",
@@ -47,6 +96,7 @@ def test_admin_dashboard_hides_insights_panel(client, login, user_factory):
         sala_id=sala_regular.id,
         professor_id=prof_1.id,
         disciplina_id=disc_b.id,
+        turma_id=turma_b.id,
     )
     db.session.add_all([t1, t2, t3, t4])
     db.session.commit()
@@ -59,9 +109,9 @@ def test_admin_dashboard_hides_insights_panel(client, login, user_factory):
 
     db.session.add_all(
         [
-            Matricula(aluno_id=aluno_1.id, timetable_id=t1.id),
-            Matricula(aluno_id=aluno_2.id, timetable_id=t1.id),
-            Matricula(aluno_id=aluno_3.id, timetable_id=t2.id),
+            Matricula(aluno_id=aluno_1.id, turma_id=turma_a.id),
+            Matricula(aluno_id=aluno_2.id, turma_id=turma_a.id),
+            Matricula(aluno_id=aluno_3.id, turma_id=turma_b.id),
         ]
     )
     db.session.commit()

@@ -23,6 +23,11 @@
     {{ render_field(form.password2) }}
     {% endif %}
 
+    {% if form.disciplinas_ids is defined %}
+    {{ render_field(form.disciplinas_ids) }}
+    <div class="form-text mb-3">Selecione as disciplinas que este professor esta apto a ministrar.</div>
+    {% endif %}
+
     {{ form.submit(class="btn btn-primary") }}
   </form>
 </section>

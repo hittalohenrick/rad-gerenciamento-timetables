@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 
 from app import db
 from app.forms import AttendanceForm, parse_date_br
-from app.models import Matricula, Presenca, Timetable
+from app.models import Matricula, Presenca, Timetable, Turma
 
 from . import bp
 from .helpers import normalize_text, professor_required
@@ -128,7 +128,8 @@ def professor_dashboard():
         Timetable.query.options(
             joinedload(Timetable.sala),
             joinedload(Timetable.disciplina),
-            joinedload(Timetable.matriculas).joinedload(Matricula.aluno),
+            joinedload(Timetable.turma).joinedload(Turma.curso),
+            joinedload(Timetable.turma).joinedload(Turma.matriculas).joinedload(Matricula.aluno),
         )
         .filter(Timetable.professor_id == current_user.id)
         .order_by(Timetable.dia.asc(), Timetable.hora_inicio.asc())
@@ -146,7 +147,8 @@ def professor_attendance(timetable_id):
         Timetable.query.options(
             joinedload(Timetable.sala),
             joinedload(Timetable.disciplina),
-            joinedload(Timetable.matriculas).joinedload(Matricula.aluno),
+            joinedload(Timetable.turma).joinedload(Turma.curso),
+            joinedload(Timetable.turma).joinedload(Turma.matriculas).joinedload(Matricula.aluno),
         )
         .filter(Timetable.id == timetable_id, Timetable.professor_id == current_user.id)
         .first()
@@ -156,7 +158,11 @@ def professor_attendance(timetable_id):
         flash("Turma nao encontrada para este professor.", "warning")
         return redirect(url_for("main.professor_dashboard"))
 
-    matriculas = sorted(timetable.matriculas, key=lambda item: item.aluno.nome.lower())
+    if timetable.turma is None:
+        flash("A alocacao selecionada nao possui turma vinculada.", "warning")
+        return redirect(url_for("main.professor_dashboard"))
+
+    matriculas = sorted(timetable.turma.matriculas, key=lambda item: item.aluno.nome.lower())
     if not matriculas:
         flash("Esta turma ainda nao possui alunos alocados.", "warning")
         return redirect(url_for("main.professor_dashboard"))

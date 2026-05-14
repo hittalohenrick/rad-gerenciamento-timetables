@@ -7,15 +7,18 @@
 <section class="surface form-shell stagger-in">
   <div class="page-head">
     <div>
-      <p class="eyebrow">Matricula em Turma</p>
+      <p class="eyebrow">Planejamento Semestral</p>
       <h1>{{ title }}</h1>
+      <p class="page-lead">O periodo da turma deve estar dentro da quantidade de periodos definida no curso.</p>
     </div>
   </div>
   <form method="POST" novalidate>
     {{ form.hidden_tag() }}
-    {{ render_field(form.aluno_id) }}
-    {{ render_field(form.turma_id) }}
-
+    {{ render_field(form.curso_id) }}
+    {{ render_field(form.codigo) }}
+    {{ render_field(form.semestre_letivo) }}
+    {{ render_field(form.periodo) }}
+    {{ render_field(form.quantidade_alunos) }}
     {{ form.submit(class="btn btn-primary") }}
   </form>
 </section>

@@ -1,7 +1,7 @@
 {% macro render_field(field, class_name='form-control') %}
 <div class="mb-3">
   {{ field.label(class="form-label") }}
-  {% if field.type in ['SelectField'] %}
+  {% if field.type in ['SelectField', 'SelectMultipleField'] %}
   {% set base_class = 'form-select' %}
   {% else %}
   {% set base_class = class_name %}

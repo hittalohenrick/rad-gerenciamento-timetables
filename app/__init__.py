@@ -3,7 +3,7 @@ import sqlite3
 from flask import Flask
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import event
+from sqlalchemy import event, inspect, text
 from sqlalchemy.engine import Engine
 
 from config import Config
@@ -41,4 +41,34 @@ def create_app(config_overrides=None):
 
     app.register_blueprint(bp)
 
+    with app.app_context():
+        db.create_all()
+        _ensure_runtime_schema()
+
     return app
+
+
+def _ensure_runtime_schema():
+    inspector = inspect(db.engine)
+    tables = set(inspector.get_table_names())
+
+    if "timetable" in tables:
+        timetable_columns = {column["name"] for column in inspector.get_columns("timetable")}
+        if "turma_id" not in timetable_columns:
+            db.session.execute(text("ALTER TABLE timetable ADD COLUMN turma_id INTEGER"))
+            db.session.commit()
+
+    if "matricula" in tables:
+        matricula_columns = {column["name"] for column in inspector.get_columns("matricula")}
+        if "turma_id" not in matricula_columns:
+            db.session.execute(text("ALTER TABLE matricula ADD COLUMN turma_id INTEGER"))
+            db.session.commit()
+
+    if "curso" in tables:
+        curso_columns = {column["name"] for column in inspector.get_columns("curso")}
+        if "quantidade_periodos" not in curso_columns:
+            db.session.execute(text("ALTER TABLE curso ADD COLUMN quantidade_periodos INTEGER DEFAULT 8"))
+            db.session.execute(
+                text("UPDATE curso SET quantidade_periodos = 8 WHERE quantidade_periodos IS NULL")
+            )
+            db.session.commit()

@@ -7,15 +7,14 @@
 <section class="surface form-shell stagger-in">
   <div class="page-head">
     <div>
-      <p class="eyebrow">Matricula em Turma</p>
+      <p class="eyebrow">Base Academica</p>
       <h1>{{ title }}</h1>
     </div>
   </div>
   <form method="POST" novalidate>
     {{ form.hidden_tag() }}
-    {{ render_field(form.aluno_id) }}
-    {{ render_field(form.turma_id) }}
-
+    {{ render_field(form.curso_id) }}
+    {{ render_field(form.nome) }}
     {{ form.submit(class="btn btn-primary") }}
   </form>
 </section>

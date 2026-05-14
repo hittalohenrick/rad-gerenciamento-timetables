@@ -1,7 +1,7 @@
 from datetime import datetime, time
 
 from flask_wtf import FlaskForm
-from wtforms import IntegerField, PasswordField, SelectField, StringField, SubmitField
+from wtforms import IntegerField, PasswordField, SelectField, SelectMultipleField, StringField, SubmitField
 from wtforms.validators import (
     DataRequired,
     EqualTo,
@@ -12,34 +12,59 @@ from wtforms.validators import (
 )
 
 PASSWORD_MIN_LENGTH = 6
+WEEKDAY_CHOICES = [
+    ("Segunda", "Segunda"),
+    ("Terca", "Terca"),
+    ("Quarta", "Quarta"),
+    ("Quinta", "Quinta"),
+    ("Sexta", "Sexta"),
+    ("Sabado", "Sabado"),
+    ("Domingo", "Domingo"),
+]
+WEEKDAY_VALUES = [value for value, _ in WEEKDAY_CHOICES]
+SHIFT_SLOTS = [
+    ("manha_0700_0830", "Manha 1 (07:00 - 08:30)", time(7, 0), time(8, 30)),
+    ("manha_0900_1030", "Manha 2 (09:00 - 10:30)", time(9, 0), time(10, 30)),
+    ("tarde_1300_1430", "Tarde 1 (13:00 - 14:30)", time(13, 0), time(14, 30)),
+    ("tarde_1500_1630", "Tarde 2 (15:00 - 16:30)", time(15, 0), time(16, 30)),
+    ("noite_1800_1930", "Noite 1 (18:00 - 19:30)", time(18, 0), time(19, 30)),
+    ("noite_2000_2130", "Noite 2 (20:00 - 21:30)", time(20, 0), time(21, 30)),
+]
+SHIFT_SLOT_CHOICES = [(slot_id, label) for slot_id, label, _, _ in SHIFT_SLOTS]
+SHIFT_SLOT_VALUES = [slot_id for slot_id, *_ in SHIFT_SLOTS]
+SHIFT_SLOT_MAP = {
+    slot_id: {"label": label, "start": start, "end": end}
+    for slot_id, label, start, end in SHIFT_SLOTS
+}
+NIGHT_SHIFT_ID = "noite_1800_1930"
+NIGHT_SHIFT_START = SHIFT_SLOT_MAP[NIGHT_SHIFT_ID]["start"]
+NIGHT_SHIFT_END = SHIFT_SLOT_MAP[NIGHT_SHIFT_ID]["end"]
+NIGHT_SHIFT_CHOICES = [(NIGHT_SHIFT_ID, SHIFT_SLOT_MAP[NIGHT_SHIFT_ID]["label"])]
 
 
-def parse_time(value):
-    if isinstance(value, time):
-        return value
-    return datetime.strptime((value or "").strip(), "%H:%M").time()
+def get_shift_bounds(slot_id):
+    slot = SHIFT_SLOT_MAP.get(slot_id)
+    if not slot:
+        return None, None
+    return slot["start"], slot["end"]
+
+
+def get_shift_label(slot_id):
+    slot = SHIFT_SLOT_MAP.get(slot_id)
+    if not slot:
+        return "Horario personalizado"
+    return slot["label"]
+
+
+def resolve_shift_slot_id(hora_inicio, hora_fim):
+    for slot_id, slot in SHIFT_SLOT_MAP.items():
+        if slot["start"] == hora_inicio and slot["end"] == hora_fim:
+            return slot_id
+    return None
 
 
 def parse_date_br(value):
     return datetime.strptime((value or "").strip(), "%d/%m/%Y").date()
-
-
-def validate_time_24h(form, field):
-    try:
-        parse_time(field.data)
-    except (TypeError, ValueError):
-        raise ValidationError("Use o formato 24h HH:MM (ex: 19:00).")
-
-
-def validate_time_range(form, field):
-    if form.hora_inicio.data and form.hora_fim.data:
-        try:
-            inicio = parse_time(form.hora_inicio.data)
-            fim = parse_time(form.hora_fim.data)
-        except (TypeError, ValueError):
-            return
-        if inicio >= fim:
-            raise ValidationError("A hora de inicio deve ser anterior a hora de fim.")
 
 
 def validate_date_br(form, field):
@@ -71,6 +96,12 @@ class ProfessorForm(FlaskForm):
     password2 = PasswordField(
         "Repetir Senha", validators=[DataRequired(), EqualTo("password")], render_kw={"autocomplete": "new-password"}
     )
+    disciplinas_ids = SelectMultipleField(
+        "Disciplinas Aptas",
+        coerce=int,
+        validators=[DataRequired()],
+        render_kw={"data-searchable": "true", "size": "8"},
+    )
     submit = SubmitField("Salvar")
 
 
@@ -86,6 +117,12 @@ class ProfessorEditForm(FlaskForm):
     password2 = PasswordField(
         "Repetir Nova Senha", validators=[EqualTo("password")], render_kw={"autocomplete": "new-password"}
     )
+    disciplinas_ids = SelectMultipleField(
+        "Disciplinas Aptas",
+        coerce=int,
+        validators=[DataRequired()],
+        render_kw={"data-searchable": "true", "size": "8"},
+    )
     submit = SubmitField("Salvar")
 
 
@@ -100,43 +137,57 @@ class DisciplinaForm(FlaskForm):
     submit = SubmitField("Salvar")
 
 
+class CursoForm(FlaskForm):
+    nome = StringField("Nome do Curso", validators=[DataRequired(), Length(min=2, max=120)])
+    codigo = StringField("Codigo do Curso", validators=[DataRequired(), Length(min=2, max=20)])
+    quantidade_periodos = IntegerField(
+        "Quantidade de Periodos",
+        validators=[DataRequired(), NumberRange(min=1, max=16)],
+        default=8,
+    )
+    submit = SubmitField("Salvar")
+
+
+class GradeCurricularForm(FlaskForm):
+    nome = StringField("Nome da Grade", validators=[DataRequired(), Length(min=2, max=120)])
+    curso_id = SelectField("Curso", coerce=int, validators=[DataRequired()])
+    submit = SubmitField("Salvar")
+
+
+class GradeCurricularItemForm(FlaskForm):
+    disciplina_id = SelectField("Disciplina", coerce=int, validators=[DataRequired()])
+    periodo = IntegerField("Periodo", validators=[DataRequired(), NumberRange(min=1, max=16)])
+    submit = SubmitField("Salvar")
+
+
+class TurmaForm(FlaskForm):
+    curso_id = SelectField("Curso", coerce=int, validators=[DataRequired()])
+    codigo = StringField("Codigo da Turma", validators=[DataRequired(), Length(min=2, max=30)])
+    semestre_letivo = StringField("Semestre Letivo", validators=[DataRequired(), Length(min=4, max=20)])
+    periodo = IntegerField("Periodo", validators=[DataRequired(), NumberRange(min=1, max=16)])
+    quantidade_alunos = IntegerField(
+        "Quantidade de Alunos (opcional)",
+        validators=[Optional(), NumberRange(min=1, max=500)],
+    )
+    submit = SubmitField("Salvar")
+
+
 class TimetableForm(FlaskForm):
     dia = SelectField(
         "Dia",
-        choices=[
-            ("Segunda", "Segunda"),
-            ("Terça", "Terça"),
-            ("Quarta", "Quarta"),
-            ("Quinta", "Quinta"),
-            ("Sexta", "Sexta"),
-            ("Sábado", "Sábado"),
-            ("Domingo", "Domingo"),
-        ],
+        choices=WEEKDAY_CHOICES,
         validators=[DataRequired()],
     )
-    hora_inicio = StringField(
-        "Horario Inicio",
-        validators=[DataRequired(), validate_time_24h],
-        render_kw={
-            "placeholder": "HH:MM",
-            "inputmode": "numeric",
-            "maxlength": "5",
-            "pattern": r"\d{2}:\d{2}",
-            "data-time-spinner": "24h",
-            "autocomplete": "off",
-        },
+    horario_id = SelectField(
+        "Horario",
+        choices=SHIFT_SLOT_CHOICES,
+        validators=[DataRequired()],
+        default=SHIFT_SLOT_CHOICES[0][0],
     )
-    hora_fim = StringField(
-        "Horario Fim",
-        validators=[DataRequired(), validate_time_24h, validate_time_range],
-        render_kw={
-            "placeholder": "HH:MM",
-            "inputmode": "numeric",
-            "maxlength": "5",
-            "pattern": r"\d{2}:\d{2}",
-            "data-time-spinner": "24h",
-            "autocomplete": "off",
-        },
+    turma_id = SelectField(
+        "Turma",
+        coerce=int,
+        validators=[DataRequired()],
     )
     sala_id = SelectField(
         "Sala",
@@ -172,7 +223,7 @@ class MatriculaForm(FlaskForm):
         coerce=int,
         validators=[DataRequired()],
     )
-    timetable_id = SelectField(
+    turma_id = SelectField(
         "Turma",
         coerce=int,
         validators=[DataRequired()],

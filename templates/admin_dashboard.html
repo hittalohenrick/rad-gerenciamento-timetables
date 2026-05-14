@@ -11,15 +11,36 @@
   </div>
 
   <div class="dashboard-stats">
+    <div class="stat-card"><h3>{{ cursos|length }}</h3><p>Cursos</p></div>
+    <div class="stat-card"><h3>{{ grades|length }}</h3><p>Grades</p></div>
     <div class="stat-card"><h3>{{ salas|length }}</h3><p>Salas</p></div>
     <div class="stat-card"><h3>{{ professores|length }}</h3><p>Professores</p></div>
     <div class="stat-card"><h3>{{ disciplinas|length }}</h3><p>Disciplinas</p></div>
+    <div class="stat-card"><h3>{{ turmas|length }}</h3><p>Turmas de Oferta</p></div>
     <div class="stat-card"><h3>{{ alunos|length }}</h3><p>Alunos</p></div>
     <div class="stat-card"><h3>{{ matriculas_count }}</h3><p>Matriculas</p></div>
-    <div class="stat-card"><h3>{{ timetables|length }}</h3><p>Turmas Ativas</p></div>
+    <div class="stat-card"><h3>{{ timetables|length }}</h3><p>Alocacoes Ativas</p></div>
   </div>
 
   <div class="row mb-4">
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card h-100">
+        <div class="card-header">Cursos</div>
+        <div class="card-body text-center">
+          <p class="card-text">Cadastre os cursos base da instituicao.</p>
+          <a href="{{ url_for('main.cursos') }}" class="btn btn-primary">Gerenciar Cursos</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card h-100">
+        <div class="card-header">Grades Curriculares</div>
+        <div class="card-body text-center">
+          <p class="card-text">Monte disciplinas por periodo para cada curso.</p>
+          <a href="{{ url_for('main.grades') }}" class="btn btn-primary">Gerenciar Grades</a>
+        </div>
+      </div>
+    </div>
     <div class="col-md-6 col-lg-4 mb-3">
       <div class="card h-100">
         <div class="card-header">Salas</div>
@@ -44,6 +65,15 @@
         <div class="card-body text-center">
           <p class="card-text">Mantenha a grade de disciplinas atualizada.</p>
           <a href="{{ url_for('main.disciplinas') }}" class="btn btn-primary">Gerenciar Disciplinas</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card h-100">
+        <div class="card-header">Turmas de Oferta</div>
+        <div class="card-body text-center">
+          <p class="card-text">Organize turmas por semestre para cada ciclo letivo.</p>
+          <a href="{{ url_for('main.turmas') }}" class="btn btn-primary">Gerenciar Turmas</a>
         </div>
       </div>
     </div>
@@ -81,6 +111,7 @@
               <tr>
                 <th>Dia</th>
                 <th>Horario</th>
+                <th>Turma</th>
                 <th>Sala</th>
                 <th>Professor</th>
                 <th>Disciplina</th>
@@ -92,6 +123,13 @@
               <tr>
                 <td>{{ t.dia }}</td>
                 <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
+                <td>
+                  {% if t.turma %}
+                  {{ t.turma.curso.nome if t.turma.curso else 'Curso' }} | {{ t.turma.codigo }} | {{ t.turma.semestre_letivo }}
+                  {% else %}
+                  <span class="text-muted">Sem turma</span>
+                  {% endif %}
+                </td>
                 <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
                 <td>{{ t.professor.username if t.professor else 'Professor removido' }}</td>
                 <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>

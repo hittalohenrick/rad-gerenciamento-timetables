@@ -2,37 +2,50 @@ from __future__ import annotations
 
 import argparse
 import random
+from collections import defaultdict
 from datetime import time
 
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload
 
 from app import create_app, db
-from app.models import Aluno, Disciplina, Matricula, Sala, Timetable, User
+from app.models import (
+    Aluno,
+    Curso,
+    Disciplina,
+    GradeCurricular,
+    GradeCurricularItem,
+    Matricula,
+    Sala,
+    Timetable,
+    Turma,
+    User,
+)
+from seed_curricula_base import CURRICULA, load_curricula
 
-DAYS = ["Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"]
+DAYS = ["Segunda", "Terca", "Quarta", "Quinta", "Sexta"]
 TIME_SLOTS = [
-    (time(7, 30), time(9, 10)),
-    (time(9, 20), time(11, 0)),
-    (time(13, 0), time(14, 40)),
-    (time(14, 50), time(16, 30)),
-    (time(18, 30), time(20, 10)),
-    (time(20, 20), time(22, 0)),
+    (time(7, 0), time(8, 30)),
+    (time(9, 0), time(10, 30)),
+    (time(13, 0), time(14, 30)),
+    (time(15, 0), time(16, 30)),
+    (time(18, 0), time(19, 30)),
+    (time(20, 0), time(21, 30)),
 ]
+SEMESTER_DEFAULT = "2026.1"
 MOCK_DISCIPLINAS = [
-    "Algoritmos Avancados",
-    "Banco de Dados II",
+    "Algoritmos",
+    "Banco de Dados",
     "Engenharia de Software",
     "Sistemas Distribuidos",
     "Arquitetura de Computadores",
     "Interacao Humano Computador",
     "Compiladores",
     "Machine Learning",
-    "Redes de Computadores II",
+    "Redes de Computadores",
     "Seguranca da Informacao",
     "Computacao em Nuvem",
     "Programacao Mobile",
-    "Programacao Web II",
+    "Programacao Web",
     "Gestao de Projetos",
     "Analise de Dados",
     "Pesquisa Operacional",
@@ -46,9 +59,9 @@ MOCK_SALAS = [
     ("Bloco B - Sala 201", 45),
     ("Bloco B - Sala 202", 45),
     ("Bloco B - Sala 203", 50),
-    ("Laboratorio 01", 30),
-    ("Laboratorio 02", 30),
-    ("Laboratorio 03", 25),
+    ("Sala C - 301", 30),
+    ("Sala C - 302", 30),
+    ("Sala C - 303", 25),
     ("Auditorio Menor", 80),
     ("Sala Multiuso", 55),
     ("Espaco Inovacao", 28),
@@ -88,10 +101,7 @@ def ensure_admin():
 
 
 def ensure_mock_professores(target_total: int):
-    existing = {
-        normalize(user.username): user
-        for user in User.query.filter(User.role == "professor").all()
-    }
+    existing = {normalize(user.username): user for user in User.query.filter(User.role == "professor").all()}
     created = 0
 
     for idx in range(1, target_total + 1):
@@ -109,70 +119,159 @@ def ensure_mock_professores(target_total: int):
 
 
 def ensure_mock_salas(target_total: int):
-    existing = {
-        normalize(sala.nome): sala
-        for sala in Sala.query.all()
-    }
+    existing = {normalize(sala.nome): sala for sala in Sala.query.all()}
     created = 0
+
     for nome, capacidade in MOCK_SALAS[:target_total]:
         if normalize(nome) in existing:
             continue
         db.session.add(Sala(nome=nome, capacidade=capacidade))
         created += 1
+
     return created
 
 
 def ensure_mock_disciplinas(target_total: int):
-    existing_names = {
-        normalize(disc.nome): disc
-        for disc in Disciplina.query.all()
-    }
-    existing_codes = {disc.codigo for disc in Disciplina.query.with_entities(Disciplina.codigo).all()}
+    # Mantido por compatibilidade de assinatura; a carga curricular base ja cria o catalogo necessario.
+    return 0
 
-    def next_code(start_at: int):
-        sequence = start_at
-        while True:
-            code = f"MK{sequence:04d}"
-            sequence += 1
-            if code in existing_codes:
-                continue
-            existing_codes.add(code)
-            return code, sequence
 
-    sequence = 1
-    created = 0
-    for nome in MOCK_DISCIPLINAS[:target_total]:
-        key = normalize(nome)
-        if key in existing_names:
+def ensure_professor_aptidoes(rng: random.Random):
+    professores = User.query.filter_by(role="professor").all()
+    disciplinas_curriculares = (
+        db.session.query(Disciplina)
+        .join(GradeCurricularItem, GradeCurricularItem.disciplina_id == Disciplina.id)
+        .join(GradeCurricular, GradeCurricularItem.grade_id == GradeCurricular.id)
+        .filter(GradeCurricular.ativa.is_(True))
+        .distinct()
+        .all()
+    )
+    if not professores or not disciplinas_curriculares:
+        return 0
+
+    updated = 0
+    for professor in professores:
+        min_size = min(8, len(disciplinas_curriculares))
+        max_size = min(20, len(disciplinas_curriculares))
+        if max_size == 0:
             continue
-        code, sequence = next_code(sequence)
-        db.session.add(Disciplina(nome=nome, codigo=code))
+        if len(professor.disciplinas_aptas) >= min_size:
+            continue
+
+        sample_size = rng.randint(min_size, max_size)
+        professor.disciplinas_aptas = rng.sample(disciplinas_curriculares, sample_size)
+        updated += 1
+
+    return updated
+
+
+def add_mock_turmas(rng: random.Random, target_new: int):
+    cursos = Curso.query.order_by(Curso.id.asc()).all()
+    if not cursos:
+        return 0
+
+    existing = {
+        (curso_id, normalize(codigo), normalize(semestre_letivo))
+        for curso_id, codigo, semestre_letivo in db.session.query(
+            Turma.curso_id,
+            Turma.codigo,
+            Turma.semestre_letivo,
+        ).all()
+    }
+
+    created = 0
+    attempts = 0
+    max_attempts = target_new * 60
+    sequence = 1
+
+    while created < target_new and attempts < max_attempts:
+        attempts += 1
+        curso = rng.choice(cursos)
+        grade_ativa = (
+            GradeCurricular.query.filter_by(curso_id=curso.id, ativa=True)
+            .order_by(GradeCurricular.id.desc())
+            .first()
+        )
+        if grade_ativa is None:
+            continue
+        periodos_validos = {
+            periodo
+            for (periodo,) in db.session.query(GradeCurricularItem.periodo)
+            .filter(GradeCurricularItem.grade_id == grade_ativa.id)
+            .all()
+            if 1 <= periodo <= (curso.quantidade_periodos or 1)
+        }
+        if not periodos_validos:
+            continue
+        periodo = rng.choice(sorted(periodos_validos))
+        codigo = f"{curso.codigo}-P{periodo}-{sequence:02d}"
+        sequence += 1
+        key = (curso.id, normalize(codigo), normalize(SEMESTER_DEFAULT))
+        if key in existing:
+            continue
+
+        turma = Turma(
+            curso_id=curso.id,
+            codigo=codigo,
+            semestre_letivo=SEMESTER_DEFAULT,
+            periodo=periodo,
+            quantidade_alunos=rng.choice([25, 30, 35, 40]),
+            ativa=True,
+        )
+        db.session.add(turma)
+        existing.add(key)
         created += 1
 
     return created
 
 
-def build_schedule_index(timetables):
-    room_index = {}
-    professor_index = {}
-    for turma in timetables:
-        room_key = (turma.dia, turma.sala_id)
-        prof_key = (turma.dia, turma.professor_id)
-        room_index.setdefault(room_key, []).append((turma.hora_inicio, turma.hora_fim))
-        professor_index.setdefault(prof_key, []).append((turma.hora_inicio, turma.hora_fim))
-    return room_index, professor_index
+def _grade_disciplinas_por_turma():
+    rows = (
+        db.session.query(Turma.id, GradeCurricularItem.disciplina_id)
+        .join(GradeCurricular, GradeCurricular.curso_id == Turma.curso_id)
+        .join(GradeCurricularItem, GradeCurricularItem.grade_id == GradeCurricular.id)
+        .filter(
+            GradeCurricular.ativa.is_(True),
+            GradeCurricularItem.periodo == Turma.periodo,
+        )
+        .all()
+    )
+
+    by_turma = defaultdict(list)
+    for turma_id, disciplina_id in rows:
+        by_turma[turma_id].append(disciplina_id)
+
+    return by_turma
 
 
-def add_mock_turmas(rng: random.Random, target_new: int):
-    professores = User.query.filter_by(role="professor").all()
+def _build_schedule_index(timetables):
+    room_index = defaultdict(list)
+    professor_index = defaultdict(list)
+    turma_index = defaultdict(list)
+
+    for row in timetables:
+        room_index[(row.dia, row.sala_id)].append((row.hora_inicio, row.hora_fim))
+        professor_index[(row.dia, row.professor_id)].append((row.hora_inicio, row.hora_fim))
+        turma_index[(row.dia, row.turma_id)].append((row.hora_inicio, row.hora_fim))
+
+    return room_index, professor_index, turma_index
+
+
+def add_mock_timetables(rng: random.Random, target_new: int):
     salas = Sala.query.all()
-    disciplinas = Disciplina.query.all()
-
-    if not professores or not salas or not disciplinas:
+    professores = User.query.filter_by(role="professor").all()
+    turmas = Turma.query.all()
+    if not salas or not professores or not turmas:
         return 0
 
-    existing_turmas = Timetable.query.all()
-    room_index, professor_index = build_schedule_index(existing_turmas)
+    professor_aptidoes = {
+        professor.id: {disciplina.id for disciplina in professor.disciplinas_aptas}
+        for professor in professores
+    }
+    disciplinas_por_turma = _grade_disciplinas_por_turma()
+
+    existing = Timetable.query.all()
+    room_index, professor_index, turma_index = _build_schedule_index(existing)
 
     created = 0
     attempts = 0
@@ -180,42 +279,57 @@ def add_mock_turmas(rng: random.Random, target_new: int):
 
     while created < target_new and attempts < max_attempts:
         attempts += 1
+        turma = rng.choice(turmas)
+        allowed_disciplines = disciplinas_por_turma.get(turma.id, [])
+        if not allowed_disciplines:
+            continue
+
+        disciplina_id = rng.choice(allowed_disciplines)
+        eligible_professors = [
+            professor
+            for professor in professores
+            if disciplina_id in professor_aptidoes.get(professor.id, set())
+        ]
+        if not eligible_professors:
+            continue
+
         dia = rng.choice(DAYS)
         hora_inicio, hora_fim = rng.choice(TIME_SLOTS)
         sala = rng.choice(salas)
-        professor = rng.choice(professores)
-        disciplina = rng.choice(disciplinas)
+        professor = rng.choice(eligible_professors)
 
-        room_busy = room_index.get((dia, sala.id), [])
-        prof_busy = professor_index.get((dia, professor.id), [])
+        room_busy = room_index[(dia, sala.id)]
+        prof_busy = professor_index[(dia, professor.id)]
+        turma_busy = turma_index[(dia, turma.id)]
 
         if any(times_overlap(hora_inicio, hora_fim, start, end) for start, end in room_busy):
             continue
         if any(times_overlap(hora_inicio, hora_fim, start, end) for start, end in prof_busy):
             continue
+        if any(times_overlap(hora_inicio, hora_fim, start, end) for start, end in turma_busy):
+            continue
 
-        turma = Timetable(
-            dia=dia,
-            hora_inicio=hora_inicio,
-            hora_fim=hora_fim,
-            sala_id=sala.id,
-            professor_id=professor.id,
-            disciplina_id=disciplina.id,
+        db.session.add(
+            Timetable(
+                dia=dia,
+                hora_inicio=hora_inicio,
+                hora_fim=hora_fim,
+                sala_id=sala.id,
+                professor_id=professor.id,
+                disciplina_id=disciplina_id,
+                turma_id=turma.id,
+            )
         )
-        db.session.add(turma)
-
-        room_index.setdefault((dia, sala.id), []).append((hora_inicio, hora_fim))
-        professor_index.setdefault((dia, professor.id), []).append((hora_inicio, hora_fim))
+        room_index[(dia, sala.id)].append((hora_inicio, hora_fim))
+        professor_index[(dia, professor.id)].append((hora_inicio, hora_fim))
+        turma_index[(dia, turma.id)].append((hora_inicio, hora_fim))
         created += 1
 
     return created
 
 
 def add_mock_alunos(target_new: int):
-    existing_matriculas = {
-        matricula
-        for (matricula,) in db.session.query(Aluno.matricula).all()
-    }
+    existing_matriculas = {matricula for (matricula,) in db.session.query(Aluno.matricula).all()}
     matriculas = pick_unique_matriculas(existing_matriculas, target_new)
 
     for idx, matricula in enumerate(matriculas, start=1):
@@ -224,52 +338,56 @@ def add_mock_alunos(target_new: int):
     return target_new
 
 
-def build_student_schedule_index():
-    student_schedule = {}
-    enrollments = (
-        Matricula.query.join(Timetable, Matricula.timetable_id == Timetable.id)
-        .with_entities(
-            Matricula.aluno_id,
-            Timetable.dia,
-            Timetable.hora_inicio,
-            Timetable.hora_fim,
-        )
+def _build_turma_slots():
+    rows = (
+        db.session.query(Timetable.turma_id, Timetable.dia, Timetable.hora_inicio, Timetable.hora_fim)
+        .order_by(Timetable.turma_id.asc())
         .all()
     )
-
-    for aluno_id, dia, hora_inicio, hora_fim in enrollments:
-        student_schedule.setdefault(aluno_id, {}).setdefault(dia, []).append((hora_inicio, hora_fim))
-
-    return student_schedule
+    by_turma = defaultdict(list)
+    for turma_id, dia, hora_inicio, hora_fim in rows:
+        by_turma[turma_id].append((dia, hora_inicio, hora_fim))
+    return by_turma
 
 
 def add_mock_matriculas(rng: random.Random):
-    turmas = Timetable.query.options(joinedload(Timetable.sala)).all()
+    turmas = Turma.query.all()
     alunos = Aluno.query.all()
-
     if not turmas or not alunos:
         return 0
 
+    turma_slots = _build_turma_slots()
     existing_pairs = {
-        (aluno_id, timetable_id)
-        for aluno_id, timetable_id in db.session.query(Matricula.aluno_id, Matricula.timetable_id).all()
+        (aluno_id, turma_id)
+        for aluno_id, turma_id in db.session.query(Matricula.aluno_id, Matricula.turma_id).all()
     }
-    student_schedule = build_student_schedule_index()
+
+    aluno_turmas = defaultdict(set)
+    for aluno_id, turma_id in existing_pairs:
+        aluno_turmas[aluno_id].add(turma_id)
 
     created = 0
-    occupancy_profiles = [0.15, 0.3, 0.5, 0.7, 0.9, 1.0]
+    occupancy_profiles = [0.2, 0.4, 0.6, 0.8, 1.0]
+
+    def has_schedule_conflict(aluno_id: int, target_turma_id: int) -> bool:
+        target_slots = turma_slots.get(target_turma_id, [])
+        for enrolled_turma_id in aluno_turmas.get(aluno_id, set()):
+            for target_day, target_start, target_end in target_slots:
+                for other_day, other_start, other_end in turma_slots.get(enrolled_turma_id, []):
+                    if other_day != target_day:
+                        continue
+                    if times_overlap(target_start, target_end, other_start, other_end):
+                        return True
+        return False
 
     for turma in turmas:
-        if not turma.sala:
+        if not turma_slots.get(turma.id):
             continue
 
-        capacity = max(turma.sala.capacidade, 1)
-        target = int(round(capacity * rng.choice(occupancy_profiles)))
-        if target <= 0:
-            continue
-
-        current_count = sum(1 for pair in existing_pairs if pair[1] == turma.id)
-        remaining = max(target - current_count, 0)
+        capacidade = max(turma.quantidade_alunos or 0, 1)
+        target = int(round(capacidade * rng.choice(occupancy_profiles)))
+        current = sum(1 for _, turma_id in existing_pairs if turma_id == turma.id)
+        remaining = max(target - current, 0)
         if remaining == 0:
             continue
 
@@ -284,15 +402,12 @@ def add_mock_matriculas(rng: random.Random):
             pair = (aluno.id, turma.id)
             if pair in existing_pairs:
                 continue
-
-            agenda = student_schedule.setdefault(aluno.id, {})
-            day_entries = agenda.setdefault(turma.dia, [])
-            if any(times_overlap(turma.hora_inicio, turma.hora_fim, start, end) for start, end in day_entries):
+            if has_schedule_conflict(aluno.id, turma.id):
                 continue
 
-            db.session.add(Matricula(aluno_id=aluno.id, timetable_id=turma.id))
-            day_entries.append((turma.hora_inicio, turma.hora_fim))
+            db.session.add(Matricula(aluno_id=aluno.id, turma_id=turma.id))
             existing_pairs.add(pair)
+            aluno_turmas[aluno.id].add(turma.id)
             created += 1
             selected += 1
 
@@ -302,6 +417,10 @@ def add_mock_matriculas(rng: random.Random):
 def count_all():
     return {
         "users": db.session.query(func.count(User.id)).scalar() or 0,
+        "cursos": db.session.query(func.count(Curso.id)).scalar() or 0,
+        "grades": db.session.query(func.count(GradeCurricular.id)).scalar() or 0,
+        "grade_items": db.session.query(func.count(GradeCurricularItem.id)).scalar() or 0,
+        "turmas": db.session.query(func.count(Turma.id)).scalar() or 0,
         "salas": db.session.query(func.count(Sala.id)).scalar() or 0,
         "disciplinas": db.session.query(func.count(Disciplina.id)).scalar() or 0,
         "timetables": db.session.query(func.count(Timetable.id)).scalar() or 0,
@@ -310,18 +429,34 @@ def count_all():
     }
 
 
-def seed_mock_data(seed: int, target_professores: int, target_salas: int, target_disciplinas: int, new_turmas: int, new_alunos: int):
+def seed_mock_data(
+    seed: int,
+    target_professores: int,
+    target_salas: int,
+    target_disciplinas: int,
+    new_turmas: int,
+    new_timetables: int,
+    new_alunos: int,
+):
     rng = random.Random(seed)
-
+    # Garante ES(10), CC(8), ADS(5) e as respectivas grades base.
+    load_curricula()
     before = count_all()
 
     ensure_admin()
     created_professores = ensure_mock_professores(target_professores)
     created_salas = ensure_mock_salas(target_salas)
     created_disciplinas = ensure_mock_disciplinas(target_disciplinas)
+    created_cursos = 0
+    created_grades = 0
+    created_grade_items = 0
+    updated_aptidoes = ensure_professor_aptidoes(rng)
     db.session.commit()
 
     created_turmas = add_mock_turmas(rng, new_turmas)
+    db.session.commit()
+
+    created_timetables = add_mock_timetables(rng, new_timetables)
     db.session.commit()
 
     created_alunos = add_mock_alunos(new_alunos)
@@ -337,11 +472,27 @@ def seed_mock_data(seed: int, target_professores: int, target_salas: int, target
     print(f"Professores criados: {created_professores}")
     print(f"Salas criadas: {created_salas}")
     print(f"Disciplinas criadas: {created_disciplinas}")
+    print(f"Cursos criados: {created_cursos}")
+    print(f"Grades criadas: {created_grades}")
+    print(f"Itens de grade criados: {created_grade_items}")
+    print(f"Professores com aptidoes atualizadas: {updated_aptidoes}")
     print(f"Turmas criadas: {created_turmas}")
+    print(f"Alocacoes (timetable) criadas: {created_timetables}")
     print(f"Alunos criados: {created_alunos}")
     print(f"Matriculas criadas: {created_matriculas}")
     print("--- Totais ---")
-    for key in ["users", "salas", "disciplinas", "timetables", "alunos", "matriculas"]:
+    for key in [
+        "users",
+        "cursos",
+        "grades",
+        "grade_items",
+        "turmas",
+        "salas",
+        "disciplinas",
+        "timetables",
+        "alunos",
+        "matriculas",
+    ]:
         print(f"{key}: {before[key]} -> {after[key]}")
 
 
@@ -350,9 +501,10 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=20260511)
     parser.add_argument("--target-professores", type=int, default=16)
     parser.add_argument("--target-salas", type=int, default=12)
-    parser.add_argument("--target-disciplinas", type=int, default=18)
-    parser.add_argument("--new-turmas", type=int, default=45)
-    parser.add_argument("--new-alunos", type=int, default=120)
+    parser.add_argument("--target-disciplinas", type=int, default=0)
+    parser.add_argument("--new-turmas", type=int, default=24)
+    parser.add_argument("--new-timetables", type=int, default=120)
+    parser.add_argument("--new-alunos", type=int, default=160)
     return parser.parse_args()
 
 
@@ -367,6 +519,7 @@ def main():
             target_salas=args.target_salas,
             target_disciplinas=args.target_disciplinas,
             new_turmas=args.new_turmas,
+            new_timetables=args.new_timetables,
             new_alunos=args.new_alunos,
         )
 

@@ -14,18 +14,21 @@
   <form method="POST" novalidate>
     {{ form.hidden_tag() }}
     {{ render_field(form.dia) }}
+    {{ render_field(form.horario_id) }}
+    <div class="form-text mb-3">Blocos de 1h30: Manha (07:00-08:30 e 09:00-10:30), Tarde (13:00-14:30 e 15:00-16:30), Noite (18:00-19:30 e 20:00-21:30).</div>
 
-    {{ render_field(form.hora_inicio) }}
-    <div class="form-text mb-3">Formato 24h (HH:MM), ex: 19:00.</div>
-
-    {{ render_field(form.hora_fim) }}
-    <div class="form-text mb-3">Formato 24h (HH:MM), ex: 20:40.</div>
-
-    {{ render_field(form.sala_id) }}
-    {{ render_field(form.professor_id) }}
+    {{ render_field(form.turma_id) }}
+    <div class="form-text mb-3">A disciplina precisa pertencer ao periodo da turma na grade curricular ativa do curso.</div>
     {{ render_field(form.disciplina_id) }}
+    {{ render_field(form.professor_id) }}
+    {{ render_field(form.sala_id) }}
+
+    <div id="allocation-availability-note" class="form-text mb-3"></div>
 
     {{ form.submit(class="btn btn-primary") }}
   </form>
 </section>
+
+<script id="timetable-allocation-data" type="application/json">{{ (allocation_payload or {})|tojson }}</script>
+<script src="{{ url_for('static', filename='js/timetable-allocation-flow.js') }}"></script>
 {% endblock %}

@@ -36,14 +36,18 @@
 
     function renderOptions(term) {
       const normalizedTerm = normalizeText(term.trim());
-      const currentValue = select.value;
+      const currentValues = select.multiple
+        ? Array.from(select.selectedOptions).map(function (option) {
+            return option.value;
+          })
+        : [select.value];
 
       select.innerHTML = '';
 
       allOptions.forEach((item) => {
         const label = item.label || '';
         const matches = !normalizedTerm || normalizeText(label).includes(normalizedTerm);
-        const keepSelected = currentValue && item.value === currentValue;
+        const keepSelected = currentValues.includes(item.value);
 
         if (!matches && !keepSelected) {
           return;
@@ -53,7 +57,7 @@
         option.value = item.value;
         option.textContent = item.label;
         option.disabled = item.disabled;
-        option.selected = keepSelected || (!currentValue && item.selected);
+        option.selected = keepSelected || (!currentValues[0] && item.selected);
         select.appendChild(option);
       });
     }

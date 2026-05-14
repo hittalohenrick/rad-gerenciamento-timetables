@@ -4,14 +4,14 @@
 <section class="stagger-in">
   <div class="page-head">
     <div>
-      <p class="eyebrow">Área do Professor</p>
+      <p class="eyebrow">Area do Professor</p>
       <h1>Minhas Turmas</h1>
-      <p class="page-lead">Acompanhe seus horários e registre presença das turmas.</p>
+      <p class="page-lead">Acompanhe seus horarios e registre presenca das turmas.</p>
     </div>
   </div>
 
   <div class="card">
-    <div class="card-header">Alocações Atuais</div>
+    <div class="card-header">Alocacoes Atuais</div>
     <div class="card-body">
       {% if timetables %}
       <div class="table-shell">
@@ -20,11 +20,12 @@
             <thead>
               <tr>
                 <th>Dia</th>
-                <th>Horário</th>
+                <th>Horario</th>
+                <th>Turma</th>
                 <th>Sala</th>
                 <th>Disciplina</th>
                 <th>Alunos</th>
-                <th>Ações</th>
+                <th>Acoes</th>
               </tr>
             </thead>
             <tbody>
@@ -32,9 +33,16 @@
               <tr>
                 <td><strong>{{ t.dia }}</strong></td>
                 <td><span class="badge bg-primary">{{ t.hora_inicio }} - {{ t.hora_fim }}</span></td>
+                <td>
+                  {% if t.turma %}
+                  {{ t.turma.curso.nome if t.turma.curso else 'Curso' }} | {{ t.turma.codigo }} | {{ t.turma.semestre_letivo }}
+                  {% else %}
+                  <span class="text-muted">Sem turma</span>
+                  {% endif %}
+                </td>
                 <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
                 <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
-                <td>{{ t.matriculas|length }}</td>
+                <td>{{ t.turma.matriculas|length if t.turma else 0 }}</td>
                 <td class="actions-cell">
                   <a href="{{ url_for('main.professor_attendance', timetable_id=t.id) }}" class="btn btn-sm btn-success">
                     Fazer Chamada
@@ -48,8 +56,8 @@
       </div>
       {% else %}
       <div class="empty-state">
-        <h5>Nenhum horário alocado</h5>
-        <p>Você ainda não possui turmas atribuídas. Fale com o administrador.</p>
+        <h5>Nenhum horario alocado</h5>
+        <p>Voce ainda nao possui turmas atribuidas. Fale com o administrador.</p>
       </div>
       {% endif %}
     </div>
@@ -60,7 +68,7 @@
     <div class="col-md-6">
       <div class="card">
         <div class="card-body text-center">
-          <h5 class="card-title">Total de Turmas</h5>
+          <h5 class="card-title">Total de Alocacoes</h5>
           <h2 class="text-primary">{{ timetables|length }}</h2>
         </div>
       </div>
