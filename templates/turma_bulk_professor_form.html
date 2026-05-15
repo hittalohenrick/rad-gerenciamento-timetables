@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="surface form-shell stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Alocacao Docente</p>
+      <h1>{{ title }}</h1>
+      <p class="page-lead">
+        {{ turma.curso.nome if turma.curso else 'Curso' }} | {{ turma.codigo }} | {{ turma.semestre_letivo }} | {{ turma.periodo }}o periodo
+      </p>
+    </div>
+    <a href="{{ url_for('main.turma_quadro', id=turma.id) }}" class="btn btn-outline-secondary">Voltar ao Quadro</a>
+  </div>
+
+  <div class="alert alert-info">
+    Selecione professores apenas nas linhas desejadas. Cada lista ja traz somente docentes aptos e disponiveis.
+  </div>
+
+  <form method="POST" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Dia</th>
+            <th>Horario</th>
+            <th>Disciplina</th>
+            <th>Sala</th>
+            <th>Professor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in pending_timetables %}
+          <tr>
+            <td>{{ t.dia }}</td>
+            <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
+            <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
+            <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
+            <td>
+              {% set field_name = field_name_for(t.id) %}
+              {% set options = options_by_timetable.get(t.id, []) %}
+              <select name="{{ field_name }}" id="{{ field_name }}" class="form-select">
+                <option value="">Manter pendente</option>
+                {% for professor_id, professor_name in options %}
+                <option value="{{ professor_id }}">{{ professor_name }}</option>
+                {% endfor %}
+              </select>
+              {% if not options %}
+              <div class="form-text text-warning">Sem professor disponivel para este horario.</div>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {{ form.submit(class="btn btn-primary mt-2") }}
+  </form>
+</section>
+{% endblock %}

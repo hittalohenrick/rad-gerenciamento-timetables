@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="surface form-shell stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Alocacao Docente</p>
+      <h1>{{ title }}</h1>
+      <p class="page-lead">
+        {{ timetable.turma.curso.nome if timetable.turma and timetable.turma.curso else 'Curso' }} |
+        {{ timetable.turma.codigo if timetable.turma else '-' }} |
+        {{ timetable.dia }} |
+        {{ timetable.hora_inicio }} - {{ timetable.hora_fim }}
+      </p>
+    </div>
+    <a href="{{ url_for('main.turma_quadro', id=timetable.turma_id) }}" class="btn btn-outline-secondary">Voltar ao Quadro</a>
+  </div>
+
+  <div class="surface-soft p-3 mb-3">
+    <p class="mb-1"><strong>Disciplina:</strong> {{ timetable.disciplina.nome if timetable.disciplina else 'Disciplina removida' }}</p>
+    <p class="mb-0"><strong>Sala:</strong> {{ timetable.sala.nome if timetable.sala else 'Sala removida' }}</p>
+  </div>
+
+  <form method="POST" novalidate>
+    {{ form.hidden_tag() }}
+    {{ render_field(form.professor_id) }}
+    <div class="form-text mb-3">
+      A lista mostra somente professores aptos para a disciplina e disponiveis neste dia/horario.
+    </div>
+    {{ form.submit(class="btn btn-primary") }}
+  </form>
+</section>
+{% endblock %}

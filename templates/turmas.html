@@ -19,7 +19,9 @@
             <th>Codigo</th>
             <th>Semestre</th>
             <th>Periodo</th>
+            <th>Turno</th>
             <th>Qtd. Alunos</th>
+            <th>Matriculados</th>
             <th>Status</th>
             <th>Acoes</th>
           </tr>
@@ -31,9 +33,22 @@
             <td>{{ turma.codigo }}</td>
             <td>{{ turma.semestre_letivo }}</td>
             <td>{{ turma.periodo }}o</td>
+            <td>{{ turno_label_for(turma.turno) }}</td>
             <td>{{ turma.quantidade_alunos if turma.quantidade_alunos else '-' }}</td>
+            <td>{{ matriculas_por_turma.get(turma.id, 0) }}</td>
             <td>{{ 'Ativa' if turma.ativa else 'Inativa' }}</td>
             <td class="actions-cell">
+              <a href="{{ url_for('main.turma_quadro', id=turma.id) }}" class="btn btn-sm btn-primary">Quadro</a>
+              <a href="{{ url_for('main.turma_alunos', id=turma.id) }}" class="btn btn-sm btn-outline-secondary">Alunos</a>
+              <form
+                method="POST"
+                action="{{ url_for('main.gerar_turma_quadro', id=turma.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Gerar quadro automatico para esta turma?');"
+              >
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-secondary">Gerar Quadro</button>
+              </form>
               <a href="{{ url_for('main.edit_turma', id=turma.id) }}" class="btn btn-sm btn-edit">Editar</a>
               <form
                 method="POST"

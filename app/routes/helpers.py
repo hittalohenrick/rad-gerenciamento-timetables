@@ -120,7 +120,7 @@ def generate_disciplina_code():
 
 def build_timetable_label(timetable):
     disciplina_nome = timetable.disciplina.nome if timetable.disciplina else "Disciplina removida"
-    professor_nome = timetable.professor.username if timetable.professor else "Professor removido"
+    professor_nome = timetable.professor.username if timetable.professor else "Professor pendente"
     sala_nome = timetable.sala.nome if timetable.sala else "Sala removida"
     turma_nome = timetable.turma.nome_exibicao if timetable.turma else "Sem turma"
     hora_inicio = timetable.hora_inicio.strftime("%H:%M")
@@ -161,14 +161,15 @@ def find_timetable_conflict(dia, hora_inicio, hora_fim, sala_id, professor_id, e
     if room_conflict:
         return "Conflito: a sala ja possui alocacao em horario sobreposto."
 
-    professor_conflict = overlapping_query.filter(Timetable.professor_id == professor_id).first()
-    if professor_conflict:
-        return "Conflito: professor ja alocado em horario sobreposto."
+    if professor_id is not None:
+        professor_conflict = overlapping_query.filter(Timetable.professor_id == professor_id).first()
+        if professor_conflict:
+            return "Conflito: professor ja alocado em horario sobreposto."
 
     return None
 
 
-def find_timetable_conflict_with_turma(dia, hora_inicio, hora_fim, sala_id, professor_id, turma_id=None, exclude_id=None):
+def find_timetable_conflict_with_turma(dia, hora_inicio, hora_fim, sala_id, professor_id=None, turma_id=None, exclude_id=None):
     conflict_message = find_timetable_conflict(
         dia=dia,
         hora_inicio=hora_inicio,
@@ -330,6 +331,23 @@ def aluno_matricula_exists(matricula, exclude_aluno_id=None):
 
 def aluno_turma_exists(aluno_id, turma_id):
     return Matricula.query.filter_by(aluno_id=aluno_id, turma_id=turma_id).first() is not None
+
+
+def aluno_turma_same_semestre(aluno_id, turma_id):
+    turma = Turma.query.filter_by(id=turma_id).first()
+    if turma is None:
+        return None
+
+    return (
+        Turma.query.join(Matricula, Matricula.turma_id == Turma.id)
+        .filter(
+            Matricula.aluno_id == aluno_id,
+            Turma.semestre_letivo == turma.semestre_letivo,
+            Turma.id != turma.id,
+        )
+        .order_by(Turma.id.asc())
+        .first()
+    )
 
 
 def turma_capacity_reached(turma_id):

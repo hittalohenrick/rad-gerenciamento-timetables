@@ -1,85 +1,101 @@
 {% extends "base.html" %}
-{% block title %}Minhas Turmas{% endblock %}
+{% block title %}Painel do Professor{% endblock %}
 {% block content %}
 <section class="stagger-in">
   <div class="page-head">
     <div>
-      <p class="eyebrow">Area do Professor</p>
-      <h1>Minhas Turmas</h1>
-      <p class="page-lead">Acompanhe seus horarios e registre presenca das turmas.</p>
+      <p class="eyebrow">Docencia</p>
+      <h1>Agenda do Professor</h1>
+      <p class="page-lead">Visualize sua semana e registre chamada por turma de forma rapida.</p>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header">Alocacoes Atuais</div>
-    <div class="card-body">
-      {% if timetables %}
-      <div class="table-shell">
-        <div class="table-responsive">
-          <table class="table table-hover">
-            <thead>
-              <tr>
-                <th>Dia</th>
-                <th>Horario</th>
-                <th>Turma</th>
-                <th>Sala</th>
-                <th>Disciplina</th>
-                <th>Alunos</th>
-                <th>Acoes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for t in timetables %}
-              <tr>
-                <td><strong>{{ t.dia }}</strong></td>
-                <td><span class="badge bg-primary">{{ t.hora_inicio }} - {{ t.hora_fim }}</span></td>
-                <td>
-                  {% if t.turma %}
-                  {{ t.turma.curso.nome if t.turma.curso else 'Curso' }} | {{ t.turma.codigo }} | {{ t.turma.semestre_letivo }}
-                  {% else %}
-                  <span class="text-muted">Sem turma</span>
-                  {% endif %}
-                </td>
-                <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
-                <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
-                <td>{{ t.turma.matriculas|length if t.turma else 0 }}</td>
-                <td class="actions-cell">
-                  <a href="{{ url_for('main.professor_attendance', timetable_id=t.id) }}" class="btn btn-sm btn-success">
-                    Fazer Chamada
-                  </a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {% else %}
-      <div class="empty-state">
-        <h5>Nenhum horario alocado</h5>
-        <p>Voce ainda nao possui turmas atribuidas. Fale com o administrador.</p>
-      </div>
-      {% endif %}
+  <div class="dashboard-stats dashboard-stats-admin mb-4">
+    <div class="stat-card">
+      <h3>{{ timetables|length }}</h3>
+      <p>Aulas na Semana</p>
+    </div>
+    <div class="stat-card">
+      <h3>{{ total_turmas }}</h3>
+      <p>Turmas</p>
+    </div>
+    <div class="stat-card">
+      <h3>{{ total_disciplinas }}</h3>
+      <p>Disciplinas</p>
+    </div>
+    <div class="stat-card">
+      <h3>{{ total_alunos }}</h3>
+      <p>Alunos Atendidos</p>
     </div>
   </div>
 
   {% if timetables %}
-  <div class="row mt-4">
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-body text-center">
-          <h5 class="card-title">Total de Alocacoes</h5>
-          <h2 class="text-primary">{{ timetables|length }}</h2>
-        </div>
-      </div>
+  <div class="surface section-shell mb-4">
+    <div class="section-head">
+      <h2 class="section-title">Plano Semanal</h2>
+      <p class="section-subtitle">Aulas agrupadas por dia da semana.</p>
     </div>
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-body text-center">
-          <h5 class="card-title">Disciplinas Diferentes</h5>
-          <h2 class="text-success">{{ timetables|map(attribute='disciplina')|select|unique|list|length }}</h2>
+    <div class="pipeline-grid">
+      {% for day, day_rows in grouped_by_day.items() %}
+      <article class="pipeline-card pipeline-ok">
+        <div class="pipeline-top">
+          <span class="pipeline-order">{{ loop.index }}</span>
+          <span class="pipeline-status">{{ day_rows|length }} AULA(S)</span>
         </div>
-      </div>
+        <h3>{{ day }}</h3>
+        {% for t in day_rows %}
+        <div class="mini-kpi">
+          <span>{{ t.hora_inicio }} - {{ t.hora_fim }}</span>
+          <strong>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</strong>
+          <span>{{ t.turma.curso.nome if t.turma and t.turma.curso else 'Curso' }} | {{ t.turma.codigo if t.turma else '-' }}</span>
+          <span>Sala: {{ t.sala.nome if t.sala else 'Sala removida' }}</span>
+          <a href="{{ url_for('main.professor_attendance', timetable_id=t.id) }}" class="btn btn-sm btn-primary mt-2">Fazer Chamada</a>
+        </div>
+        {% endfor %}
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="surface section-shell">
+    <div class="section-head">
+      <h2 class="section-title">Visao em Tabela</h2>
+      <p class="section-subtitle">Consulta detalhada por turma/disciplina.</p>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Dia</th>
+            <th>Horario</th>
+            <th>Turma</th>
+            <th>Disciplina</th>
+            <th>Sala</th>
+            <th>Alunos</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in timetables %}
+          <tr>
+            <td>{{ t.dia }}</td>
+            <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
+            <td>{{ t.turma.curso.nome if t.turma and t.turma.curso else 'Curso' }} | {{ t.turma.codigo if t.turma else '-' }} | {{ t.turma.semestre_letivo if t.turma else '-' }}</td>
+            <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
+            <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
+            <td>{{ t.turma.matriculas|length if t.turma else 0 }}</td>
+            <td><a href="{{ url_for('main.professor_attendance', timetable_id=t.id) }}" class="btn btn-sm btn-success">Fazer Chamada</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="surface section-shell">
+    <div class="empty-state">
+      <h5>Nenhuma aula alocada</h5>
+      <p>Quando o administrador concluir as alocacoes, suas turmas aparecerao aqui.</p>
     </div>
   </div>
   {% endif %}

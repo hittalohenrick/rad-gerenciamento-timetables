@@ -120,6 +120,25 @@ def build_attendance_history(timetable_id: int) -> list[dict[str, object]]:
     return history
 
 
+def _sort_timetables_for_professor(rows):
+    return sorted(
+        rows,
+        key=lambda row: (
+            timetable_weekday(row.dia) if timetable_weekday(row.dia) is not None else 99,
+            row.hora_inicio,
+            row.hora_fim,
+        ),
+    )
+
+
+def _group_timetables_by_day(rows):
+    grouped: dict[str, list[Timetable]] = {}
+    for row in rows:
+        day_label = WEEKDAY_TO_LABEL.get(timetable_weekday(row.dia), row.dia)
+        grouped.setdefault(day_label, []).append(row)
+    return grouped
+
+
 @bp.route("/professor")
 @login_required
 @professor_required
@@ -132,11 +151,22 @@ def professor_dashboard():
             joinedload(Timetable.turma).joinedload(Turma.matriculas).joinedload(Matricula.aluno),
         )
         .filter(Timetable.professor_id == current_user.id)
-        .order_by(Timetable.dia.asc(), Timetable.hora_inicio.asc())
         .all()
     )
+    timetables = _sort_timetables_for_professor(timetables)
+    grouped_by_day = _group_timetables_by_day(timetables)
+    unique_turmas = {row.turma_id for row in timetables if row.turma_id is not None}
+    unique_disciplinas = {row.disciplina_id for row in timetables if row.disciplina_id is not None}
+    total_alunos = sum(len(row.turma.matriculas) for row in timetables if row.turma is not None)
 
-    return render_template("professor_dashboard.html", timetables=timetables)
+    return render_template(
+        "professor_dashboard.html",
+        timetables=timetables,
+        grouped_by_day=grouped_by_day,
+        total_turmas=len(unique_turmas),
+        total_disciplinas=len(unique_disciplinas),
+        total_alunos=total_alunos,
+    )
 
 
 @bp.route("/professor/turma/<int:timetable_id>/chamada", methods=["GET", "POST"])

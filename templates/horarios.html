@@ -31,15 +31,18 @@
             <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
             <td>
               {% if t.turma %}
-              {{ t.turma.curso.nome if t.turma.curso else 'Curso' }} | {{ t.turma.codigo }} | {{ t.turma.semestre_letivo }}
+              {{ t.turma.curso.nome if t.turma.curso else 'Curso' }} | {{ t.turma.codigo }} | {{ t.turma.semestre_letivo }} | {{ t.turma.periodo }}o | {{ t.turma.turno|title }}
               {% else %}
               <span class="text-muted">Sem turma</span>
               {% endif %}
             </td>
             <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
-            <td>{{ t.professor.username if t.professor else 'Professor removido' }}</td>
+            <td>{{ t.professor.username if t.professor else 'Pendente' }}</td>
             <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
             <td class="actions-cell">
+              {% if not t.professor %}
+              <a href="{{ url_for('main.alocar_professor_timetable', id=t.id) }}" class="btn btn-sm btn-primary">Alocar Professor</a>
+              {% endif %}
               <a href="{{ url_for('main.edit_timetable', id=t.id) }}" class="btn btn-sm btn-edit">Editar</a>
               <form
                 method="POST"

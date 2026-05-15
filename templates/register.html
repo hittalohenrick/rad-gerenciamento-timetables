@@ -24,11 +24,70 @@
     {% endif %}
 
     {% if form.disciplinas_ids is defined %}
-    {{ render_field(form.disciplinas_ids) }}
-    <div class="form-text mb-3">Selecione as disciplinas que este professor esta apto a ministrar.</div>
+    {% set selected_ids = form.disciplinas_ids.data or [] %}
+    <div class="mb-3">
+      <label class="form-label" for="disciplinas-search">{{ form.disciplinas_ids.label.text }}</label>
+
+      <div class="aptitudes-picker" data-aptitudes-picker>
+        <div class="aptitudes-toolbar">
+          <input
+            id="disciplinas-search"
+            type="search"
+            class="form-control"
+            placeholder="Buscar disciplina..."
+            autocomplete="off"
+            data-aptitudes-search
+          />
+          <div class="aptitudes-actions">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-aptitudes-select-all>
+              Marcar visiveis
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-aptitudes-clear>
+              Limpar
+            </button>
+          </div>
+        </div>
+
+        <p class="aptitudes-meta mb-0">
+          <strong data-aptitudes-count>0</strong> disciplina(s) selecionada(s)
+        </p>
+
+        <div class="aptitudes-list" data-aptitudes-list>
+          {% for value, label in form.disciplinas_ids.choices %}
+          <label class="aptitudes-item" data-aptitudes-item data-label="{{ label|lower }}">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              name="{{ form.disciplinas_ids.name }}"
+              value="{{ value }}"
+              {% if value in selected_ids %}checked{% endif %}
+            />
+            <span>{{ label }}</span>
+          </label>
+          {% endfor %}
+          <p class="aptitudes-empty text-muted small mb-0 d-none" data-aptitudes-empty>
+            Nenhuma disciplina encontrada para este filtro.
+          </p>
+        </div>
+      </div>
+
+      {% if form.disciplinas_ids.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.disciplinas_ids.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="form-text mb-3">Selecione as disciplinas que este professor esta apto a ministrar.</div>
+    </div>
     {% endif %}
 
     {{ form.submit(class="btn btn-primary") }}
   </form>
 </section>
+
+{% if form.disciplinas_ids is defined %}
+<script src="{{ url_for('static', filename='js/professor-aptitudes-picker.js') }}"></script>
+{% endif %}
 {% endblock %}

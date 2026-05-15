@@ -31,6 +31,12 @@ TIME_SLOTS = [
     (time(18, 0), time(19, 30)),
     (time(20, 0), time(21, 30)),
 ]
+TIME_SLOTS_BY_TURNO = {
+    "matutino": [(time(7, 0), time(8, 30)), (time(9, 0), time(10, 30))],
+    "vespertino": [(time(13, 0), time(14, 30)), (time(15, 0), time(16, 30))],
+    "noturno": [(time(18, 0), time(19, 30)), (time(20, 0), time(21, 30))],
+}
+TURNO_VALUES = list(TIME_SLOTS_BY_TURNO.keys())
 SEMESTER_DEFAULT = "2026.1"
 MOCK_DISCIPLINAS = [
     "Algoritmos",
@@ -215,6 +221,7 @@ def add_mock_turmas(rng: random.Random, target_new: int):
             codigo=codigo,
             semestre_letivo=SEMESTER_DEFAULT,
             periodo=periodo,
+            turno=rng.choice(TURNO_VALUES),
             quantidade_alunos=rng.choice([25, 30, 35, 40]),
             ativa=True,
         )
@@ -294,7 +301,8 @@ def add_mock_timetables(rng: random.Random, target_new: int):
             continue
 
         dia = rng.choice(DAYS)
-        hora_inicio, hora_fim = rng.choice(TIME_SLOTS)
+        allowed_slots = TIME_SLOTS_BY_TURNO.get(turma.turno, TIME_SLOTS)
+        hora_inicio, hora_fim = rng.choice(allowed_slots)
         sala = rng.choice(salas)
         professor = rng.choice(eligible_professors)
 

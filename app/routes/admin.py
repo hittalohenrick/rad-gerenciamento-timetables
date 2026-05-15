@@ -6,12 +6,16 @@ from sqlalchemy.orm import joinedload
 from app import db
 from app.forms import (
     AlunoForm,
+    BulkProfessorAssignmentForm,
+    TURNO_CHOICES,
     CursoForm,
     DeleteForm,
     DisciplinaForm,
     GradeCurricularForm,
     GradeCurricularItemForm,
     MatriculaForm,
+    TurmaMatriculaForm,
+    ProfessorAssignmentForm,
     ProfessorEditForm,
     ProfessorForm,
     ResetPasswordForm,
@@ -21,8 +25,10 @@ from app.forms import (
     TurmaForm,
     NIGHT_SHIFT_ID,
     WEEKDAY_VALUES,
+    allowed_slot_ids_for_turno,
     get_shift_bounds,
     get_shift_label,
+    get_turno_label,
     resolve_shift_slot_id,
 )
 from app.models import (
@@ -43,6 +49,7 @@ from .helpers import (
     admin_required,
     aluno_has_schedule_conflict,
     aluno_matricula_exists,
+    aluno_turma_same_semestre,
     aluno_turma_exists,
     active_grade_for_curso,
     canonical_day_label,
@@ -92,10 +99,13 @@ def _normalize_turma_selection(raw_turma_id):
     return int(raw_turma_id)
 
 
+def _slot_allowed_for_turma(turma, slot_id):
+    return slot_id in allowed_slot_ids_for_turno(getattr(turma, "turno", None))
+
+
 def _build_timetable_availability(salas, professores, turmas, exclude_timetable_id=None):
     all_room_ids = {sala.id for sala in salas}
     all_professor_ids = {professor.id for professor in professores}
-    all_turma_ids = {turma.id for turma in turmas}
 
     occupied_rows_query = Timetable.query.with_entities(
         Timetable.dia,
@@ -124,9 +134,16 @@ def _build_timetable_availability(salas, professores, turmas, exclude_timetable_
                 if row.hora_inicio >= slot_end or row.hora_fim <= slot_start:
                     continue
                 busy_room_ids.add(row.sala_id)
-                busy_professor_ids.add(row.professor_id)
+                if row.professor_id is not None:
+                    busy_professor_ids.add(row.professor_id)
                 if row.turma_id is not None:
                     busy_turma_ids.add(row.turma_id)
+
+            turma_ids_for_slot = sorted(
+                turma.id
+                for turma in turmas
+                if turma.id not in busy_turma_ids and _slot_allowed_for_turma(turma, slot_id)
+            )
 
             key = _build_slot_key(day_label, slot_id)
             availability_by_key[key] = {
@@ -135,7 +152,7 @@ def _build_timetable_availability(salas, professores, turmas, exclude_timetable_
                 "slot_label": get_shift_label(slot_id),
                 "sala_ids": sorted(all_room_ids.difference(busy_room_ids)),
                 "professor_ids": sorted(all_professor_ids.difference(busy_professor_ids)),
-                "turma_ids": sorted(all_turma_ids.difference(busy_turma_ids)),
+                "turma_ids": turma_ids_for_slot,
             }
 
     return availability_by_key
@@ -170,12 +187,22 @@ def _build_allocation_payload(salas, professores, disciplinas, turmas, exclude_t
         str(turma.id): allowed_disciplina_ids_for_turma(turma)
         for turma in turmas
     }
+    turma_to_turno = {
+        str(turma.id): turma.turno
+        for turma in turmas
+    }
+    turno_to_slots = {
+        turno_value: allowed_slot_ids_for_turno(turno_value)
+        for turno_value, _ in TURNO_CHOICES
+    }
 
     return {
         "availability_by_key": availability_by_key,
         "professor_to_disciplina": {str(key): value for key, value in professor_to_disciplina.items()},
         "disciplina_to_professor": {str(key): value for key, value in disciplina_to_professor.items()},
         "turma_to_disciplina": turma_to_disciplina,
+        "turma_to_turno": turma_to_turno,
+        "turno_to_slots": turno_to_slots,
         "metadata": {
             "days": WEEKDAY_VALUES,
             "slots": [{"id": slot_id, "label": get_shift_label(slot_id)} for slot_id in SHIFT_SLOT_VALUES],
@@ -201,6 +228,230 @@ def _build_night_shift_room_availability(salas, exclude_timetable_id=None):
             if sala.id in allowed_ids
         ]
     return room_by_day
+
+
+def _load_turma_timetable_rows(turma_id):
+    timetables = (
+        Timetable.query.options(
+            joinedload(Timetable.sala),
+            joinedload(Timetable.professor),
+            joinedload(Timetable.disciplina),
+            joinedload(Timetable.turma).joinedload(Turma.curso),
+        )
+        .filter(Timetable.turma_id == turma_id)
+        .all()
+    )
+    return sorted(
+        timetables,
+        key=lambda row: (
+            _day_sort_value(canonical_day_label(row.dia)),
+            row.hora_inicio,
+            row.hora_fim,
+        ),
+    )
+
+
+def _build_turma_schedule_grid(turma, timetables):
+    weekdays = WEEKDAY_VALUES[:5]
+    turno_slot_ids = allowed_slot_ids_for_turno(turma.turno)
+    timetable_by_key = {}
+    extra_rows = []
+
+    for timetable in timetables:
+        canonical_day = canonical_day_label(timetable.dia)
+        slot_id = resolve_shift_slot_id(timetable.hora_inicio, timetable.hora_fim)
+        if canonical_day in weekdays and slot_id in turno_slot_ids:
+            timetable_by_key[_build_slot_key(canonical_day, slot_id)] = timetable
+        else:
+            extra_rows.append(timetable)
+
+    grid_rows = []
+    for slot_id in turno_slot_ids:
+        row_cells = []
+        for day_label in weekdays:
+            row_cells.append(
+                {
+                    "day": day_label,
+                    "timetable": timetable_by_key.get(_build_slot_key(day_label, slot_id)),
+                }
+            )
+        grid_rows.append(
+            {
+                "slot_id": slot_id,
+                "slot_label": get_shift_label(slot_id),
+                "cells": row_cells,
+            }
+        )
+
+    return {
+        "days": weekdays,
+        "rows": grid_rows,
+        "extra_rows": extra_rows,
+    }
+
+
+def _build_turma_schedule_entries(turma, disciplinas, salas):
+    weekdays = WEEKDAY_VALUES[:5]
+    turno_slot_ids = allowed_slot_ids_for_turno(turma.turno)
+    slot_sequence = [(day_label, slot_id) for day_label in weekdays for slot_id in turno_slot_ids]
+    generated_entries = []
+    generated_turma_slots = set()
+    generated_room_slots = set()
+    unallocated_names = []
+
+    for disciplina in disciplinas:
+        allocated = False
+        for day_label, slot_id in slot_sequence:
+            slot_start, slot_end = get_shift_bounds(slot_id)
+            turma_slot_key = (day_label, slot_id)
+            if turma_slot_key in generated_turma_slots:
+                continue
+
+            for sala in salas:
+                room_slot_key = (day_label, slot_id, sala.id)
+                if room_slot_key in generated_room_slots:
+                    continue
+
+                conflict_message = find_timetable_conflict_with_turma(
+                    dia=day_label,
+                    hora_inicio=slot_start,
+                    hora_fim=slot_end,
+                    sala_id=sala.id,
+                    professor_id=None,
+                    turma_id=turma.id,
+                )
+                if conflict_message:
+                    continue
+
+                generated_entries.append(
+                    Timetable(
+                        dia=day_label,
+                        hora_inicio=slot_start,
+                        hora_fim=slot_end,
+                        sala_id=sala.id,
+                        professor_id=None,
+                        disciplina_id=disciplina.id,
+                        turma_id=turma.id,
+                    )
+                )
+                generated_turma_slots.add(turma_slot_key)
+                generated_room_slots.add(room_slot_key)
+                allocated = True
+                break
+
+            if allocated:
+                break
+
+        if not allocated:
+            unallocated_names.append(disciplina.nome)
+
+    return generated_entries, unallocated_names
+
+
+def _turma_grade_completeness(turma, timetables):
+    required_disciplina_ids = allowed_disciplina_ids_for_turma(turma)
+    required_set = set(required_disciplina_ids)
+    scheduled_ids = [row.disciplina_id for row in timetables if row.disciplina_id is not None]
+    scheduled_set = set(scheduled_ids)
+
+    missing_ids = sorted(required_set.difference(scheduled_set))
+    extra_ids = sorted(scheduled_set.difference(required_set))
+    duplicate_ids = sorted(
+        disciplina_id
+        for disciplina_id in scheduled_set
+        if scheduled_ids.count(disciplina_id) > 1
+    )
+
+    return {
+        "required_count": len(required_disciplina_ids),
+        "scheduled_count": len(scheduled_ids),
+        "missing_ids": missing_ids,
+        "extra_ids": extra_ids,
+        "duplicate_ids": duplicate_ids,
+        "is_complete": not missing_ids and not extra_ids and not duplicate_ids and len(scheduled_ids) == len(required_disciplina_ids),
+    }
+
+
+def _professor_is_free_for_timetable(professor_id, timetable, exclude_timetable_id=None):
+    if professor_id is None:
+        return False
+
+    overlapping_rows = (
+        Timetable.query.with_entities(Timetable.id, Timetable.dia, Timetable.hora_inicio, Timetable.hora_fim)
+        .filter(Timetable.professor_id == professor_id)
+        .all()
+    )
+    for row in overlapping_rows:
+        if exclude_timetable_id is not None and row.id == exclude_timetable_id:
+            continue
+        if canonical_day_label(row.dia) != canonical_day_label(timetable.dia):
+            continue
+        if row.hora_inicio < timetable.hora_fim and row.hora_fim > timetable.hora_inicio:
+            return False
+    return True
+
+
+def _available_professores_for_timetable(timetable):
+    professores = User.query.filter_by(role="professor").order_by(User.username.asc()).all()
+    available = []
+    for professor in professores:
+        if not professor_can_teach_disciplina(professor, timetable.disciplina_id):
+            continue
+        if timetable.professor_id == professor.id:
+            available.append(professor)
+            continue
+        if _professor_is_free_for_timetable(professor.id, timetable, exclude_timetable_id=timetable.id):
+            available.append(professor)
+    return available
+
+
+def _bulk_assignment_field_name(timetable_id):
+    return f"professor_for_{timetable_id}"
+
+
+def _build_bulk_professor_options(timetables):
+    options_by_timetable = {}
+    for timetable in timetables:
+        professores = _available_professores_for_timetable(timetable)
+        options_by_timetable[timetable.id] = [(professor.id, professor.username) for professor in professores]
+    return options_by_timetable
+
+
+def _extract_bulk_assignment_payload(timetables):
+    selected_by_timetable = {}
+    for timetable in timetables:
+        raw_value = normalize_text(request.form.get(_bulk_assignment_field_name(timetable.id)))
+        if not raw_value:
+            continue
+        if not raw_value.isdigit():
+            selected_by_timetable[timetable.id] = None
+            continue
+        selected_by_timetable[timetable.id] = int(raw_value)
+    return selected_by_timetable
+
+
+def _has_bulk_internal_professor_conflict(selected_by_timetable, timetable_by_id):
+    timetable_ids_by_professor = {}
+    for timetable_id, professor_id in selected_by_timetable.items():
+        if professor_id is None:
+            continue
+        timetable_ids_by_professor.setdefault(professor_id, []).append(timetable_id)
+
+    for professor_id, timetable_ids in timetable_ids_by_professor.items():
+        rows = [timetable_by_id[row_id] for row_id in timetable_ids if row_id in timetable_by_id]
+        for idx in range(len(rows)):
+            current = rows[idx]
+            for next_idx in range(idx + 1, len(rows)):
+                candidate = rows[next_idx]
+                if canonical_day_label(current.dia) != canonical_day_label(candidate.dia):
+                    continue
+                if current.hora_inicio < candidate.hora_fim and current.hora_fim > candidate.hora_inicio:
+                    return {
+                        "professor_id": professor_id,
+                        "timetable_a": current,
+                        "timetable_b": candidate,
+                    }
+    return None
 
 
 def _build_admin_insights(salas, professores, timetables):
@@ -444,6 +695,103 @@ def _load_admin_core_data():
     }
 
 
+def _build_admin_operation_panel(context):
+    cursos = context["cursos"]
+    grades = context["grades"]
+    turmas = context["turmas"]
+    professores = context["professores"]
+    timetables = context["timetables"]
+
+    matriculas_por_turma = dict(
+        db.session.query(Matricula.turma_id, func.count(Matricula.id))
+        .group_by(Matricula.turma_id)
+        .all()
+    )
+    alocacoes_por_turma = dict(
+        db.session.query(Timetable.turma_id, func.count(Timetable.id))
+        .group_by(Timetable.turma_id)
+        .all()
+    )
+    cursos_com_grade_ativa = {grade.curso_id for grade in grades if grade.ativa}
+
+    cursos_sem_grade = [curso for curso in cursos if curso.id not in cursos_com_grade_ativa]
+    turmas_sem_quadro = [turma for turma in turmas if alocacoes_por_turma.get(turma.id, 0) == 0]
+    turmas_sem_alunos = [turma for turma in turmas if matriculas_por_turma.get(turma.id, 0) == 0]
+    horarios_sem_professor = [row for row in timetables if row.professor_id is None]
+    professores_sem_aptidao = [professor for professor in professores if not professor.disciplinas_aptas]
+
+    total_turmas = len(turmas)
+    turmas_com_quadro = total_turmas - len(turmas_sem_quadro)
+    maturidade_quadro = round((turmas_com_quadro / total_turmas) * 100, 1) if total_turmas else 0.0
+
+    fluxo = [
+        {
+            "ordem": "01",
+            "titulo": "Estrutura Fisica",
+            "descricao": "Salas disponiveis para receber horarios.",
+            "status": "ok" if len(context["salas"]) > 0 else "pendente",
+            "meta": f"{len(context['salas'])} sala(s)",
+            "cta_label": "Gerenciar Salas",
+            "cta_url": url_for("main.salas"),
+        },
+        {
+            "ordem": "02",
+            "titulo": "Oferta Academica",
+            "descricao": "Cursos, grades e disciplinas prontas.",
+            "status": "ok" if len(cursos) > 0 and len(cursos_sem_grade) == 0 and len(context["disciplinas"]) > 0 else "alerta",
+            "meta": f"{len(cursos)} curso(s) | {len(context['disciplinas'])} disciplina(s)",
+            "cta_label": "Gerenciar Cursos/Grades",
+            "cta_url": url_for("main.grades"),
+        },
+        {
+            "ordem": "03",
+            "titulo": "Turmas",
+            "descricao": "Turmas abertas por semestre e periodo.",
+            "status": "ok" if total_turmas > 0 else "pendente",
+            "meta": f"{total_turmas} turma(s)",
+            "cta_label": "Gerenciar Turmas",
+            "cta_url": url_for("main.turmas"),
+        },
+        {
+            "ordem": "04",
+            "titulo": "Quadros de Horario",
+            "descricao": "Disciplinas distribuidas por dia/tempo/sala.",
+            "status": "ok" if total_turmas > 0 and len(turmas_sem_quadro) == 0 else "alerta",
+            "meta": f"{turmas_com_quadro}/{total_turmas} turma(s) com quadro",
+            "cta_label": "Gerenciar Horarios",
+            "cta_url": url_for("main.horarios"),
+        },
+        {
+            "ordem": "05",
+            "titulo": "Docentes",
+            "descricao": "Professores aptos e alocados por disciplina.",
+            "status": "ok" if len(professores) > 0 and len(horarios_sem_professor) == 0 else "alerta",
+            "meta": f"{len(professores)} professor(es)",
+            "cta_label": "Gerenciar Professores",
+            "cta_url": url_for("main.professores"),
+        },
+        {
+            "ordem": "06",
+            "titulo": "Alunos e Matriculas",
+            "descricao": "Alunos cadastrados e vinculados a turmas.",
+            "status": "ok" if len(context["alunos"]) > 0 and len(turmas_sem_alunos) == 0 else "alerta",
+            "meta": f"{len(context['alunos'])} aluno(s)",
+            "cta_label": "Gerenciar Turmas",
+            "cta_url": url_for("main.turmas"),
+        },
+    ]
+
+    return {
+        "maturidade_quadro": maturidade_quadro,
+        "cursos_sem_grade": cursos_sem_grade,
+        "turmas_sem_quadro": turmas_sem_quadro,
+        "turmas_sem_alunos": turmas_sem_alunos,
+        "horarios_sem_professor": horarios_sem_professor,
+        "professores_sem_aptidao": professores_sem_aptidao,
+        "fluxo": fluxo,
+    }
+
+
 def _build_admin_chart_data(insights, timetables):
     day_counts = {}
     for timetable in timetables:
@@ -481,6 +829,7 @@ def _build_admin_chart_data(insights, timetables):
 def _load_admin_dashboard_data():
     context = _load_admin_core_data()
     context["matriculas_count"] = Matricula.query.count()
+    context["operation_panel"] = _build_admin_operation_panel(context)
     return context
 
 
@@ -1098,8 +1447,19 @@ def turmas():
         .order_by(Turma.semestre_letivo.desc(), Turma.curso_id.asc(), Turma.codigo.asc())
         .all()
     )
+    matriculas_por_turma = dict(
+        db.session.query(Matricula.turma_id, func.count(Matricula.id))
+        .group_by(Matricula.turma_id)
+        .all()
+    )
     delete_form = DeleteForm()
-    return render_template("turmas.html", turmas=turmas, delete_form=delete_form)
+    return render_template(
+        "turmas.html",
+        turmas=turmas,
+        delete_form=delete_form,
+        turno_label_for=get_turno_label,
+        matriculas_por_turma=matriculas_por_turma,
+    )
 
 
 def _load_turma_course_choices(form):
@@ -1148,6 +1508,7 @@ def new_turma():
             codigo=codigo,
             semestre_letivo=semestre_letivo,
             periodo=form.periodo.data,
+            turno=form.turno.data,
             quantidade_alunos=form.quantidade_alunos.data or None,
         )
         db.session.add(turma)
@@ -1202,6 +1563,7 @@ def edit_turma(id):
         turma.codigo = codigo
         turma.semestre_letivo = semestre_letivo
         turma.periodo = form.periodo.data
+        turma.turno = form.turno.data
         turma.quantidade_alunos = form.quantidade_alunos.data or None
         try:
             db.session.commit()
@@ -1218,6 +1580,7 @@ def edit_turma(id):
         form.codigo.data = turma.codigo
         form.semestre_letivo.data = turma.semestre_letivo
         form.periodo.data = turma.periodo
+        form.turno.data = turma.turno
         form.quantidade_alunos.data = turma.quantidade_alunos
 
     return render_template("turma_form.html", form=form, title="Editar Turma")
@@ -1252,6 +1615,316 @@ def delete_turma(id):
 
     flash("Turma deletada com sucesso.", "success")
     return redirect(url_for("main.turmas"))
+
+
+@bp.route("/turma/<int:id>/quadro")
+@login_required
+@admin_required
+def turma_quadro(id):
+    turma = db.get_or_404(Turma, id)
+    timetables = _load_turma_timetable_rows(turma.id)
+    disciplinas_ids = allowed_disciplina_ids_for_turma(turma)
+    disciplinas = []
+    if disciplinas_ids:
+        disciplinas = (
+            Disciplina.query.filter(Disciplina.id.in_(disciplinas_ids))
+            .order_by(Disciplina.nome.asc())
+            .all()
+        )
+
+    schedule_grid = _build_turma_schedule_grid(turma, timetables)
+    completeness = _turma_grade_completeness(turma, timetables)
+    all_disciplina_ids = sorted(set(completeness["missing_ids"] + completeness["extra_ids"] + completeness["duplicate_ids"]))
+    disciplina_name_by_id = {}
+    if all_disciplina_ids:
+        disciplina_name_by_id = {
+            row.id: row.nome
+            for row in Disciplina.query.with_entities(Disciplina.id, Disciplina.nome)
+            .filter(Disciplina.id.in_(all_disciplina_ids))
+            .all()
+        }
+
+    pending_teacher_count = sum(1 for timetable in timetables if timetable.professor_id is None)
+    form = DeleteForm()
+    return render_template(
+        "turma_quadro.html",
+        turma=turma,
+        disciplinas=disciplinas,
+        timetables=timetables,
+        schedule_grid=schedule_grid,
+        pending_teacher_count=pending_teacher_count,
+        generate_form=form,
+        turno_label=get_turno_label(turma.turno),
+        completeness=completeness,
+        missing_disciplinas=[disciplina_name_by_id.get(row_id, f"ID {row_id}") for row_id in completeness["missing_ids"]],
+        extra_disciplinas=[disciplina_name_by_id.get(row_id, f"ID {row_id}") for row_id in completeness["extra_ids"]],
+        duplicate_disciplinas=[disciplina_name_by_id.get(row_id, f"ID {row_id}") for row_id in completeness["duplicate_ids"]],
+    )
+
+
+@bp.route("/turma/<int:id>/quadro/gerar", methods=["POST"])
+@login_required
+@admin_required
+def gerar_turma_quadro(id):
+    turma = db.get_or_404(Turma, id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash("Requisicao invalida.", "danger")
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    replace_existing = request.form.get("replace") == "1"
+    existing_rows = Timetable.query.filter_by(turma_id=turma.id).all()
+    if existing_rows and not replace_existing:
+        flash("Esta turma ja possui quadro cadastrado. Use a opcao de regenerar para substituir.", "warning")
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    if existing_rows:
+        existing_ids = [row.id for row in existing_rows]
+        has_presencas = Presenca.query.filter(Presenca.timetable_id.in_(existing_ids)).count()
+        if has_presencas > 0:
+            flash("Nao e possivel regenerar quadro com chamadas ja registradas.", "warning")
+            return redirect(url_for("main.turma_quadro", id=turma.id))
+        for row in existing_rows:
+            db.session.delete(row)
+        db.session.flush()
+
+    disciplinas_ids = allowed_disciplina_ids_for_turma(turma)
+    if not disciplinas_ids:
+        db.session.rollback()
+        flash("A turma nao possui disciplinas configuradas para o periodo na grade ativa.", "warning")
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    disciplinas = (
+        Disciplina.query.filter(Disciplina.id.in_(disciplinas_ids))
+        .order_by(Disciplina.nome.asc())
+        .all()
+    )
+    if not disciplinas:
+        db.session.rollback()
+        flash("Nao ha disciplinas disponiveis para montar o quadro da turma.", "warning")
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    salas = Sala.query.order_by(Sala.nome.asc()).all()
+    if not salas:
+        db.session.rollback()
+        flash("Cadastre salas antes de gerar o quadro de horarios.", "warning")
+        return redirect(url_for("main.salas"))
+
+    slot_capacity = len(WEEKDAY_VALUES[:5]) * len(allowed_slot_ids_for_turno(turma.turno))
+    if len(disciplinas) > slot_capacity:
+        db.session.rollback()
+        flash(
+            f"Ha {len(disciplinas)} disciplinas para apenas {slot_capacity} slots no turno {get_turno_label(turma.turno).lower()}.",
+            "warning",
+        )
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    generated_entries, unallocated_names = _build_turma_schedule_entries(
+        turma=turma,
+        disciplinas=disciplinas,
+        salas=salas,
+    )
+    if unallocated_names:
+        db.session.rollback()
+        flash(
+            "Nao foi possivel distribuir todas as disciplinas por falta de sala disponivel: "
+            + ", ".join(unallocated_names),
+            "warning",
+        )
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    db.session.add_all(generated_entries)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Nao foi possivel gerar o quadro da turma.", "danger")
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    flash(
+        "Quadro da turma gerado com sucesso. Agora aloque os professores em cada horario.",
+        "success",
+    )
+    return redirect(url_for("main.turma_quadro", id=turma.id))
+
+
+@bp.route("/timetable/<int:id>/alocar-professor", methods=["GET", "POST"])
+@login_required
+@admin_required
+def alocar_professor_timetable(id):
+    timetable = (
+        Timetable.query.options(
+            joinedload(Timetable.sala),
+            joinedload(Timetable.professor),
+            joinedload(Timetable.disciplina),
+            joinedload(Timetable.turma).joinedload(Turma.curso),
+        )
+        .filter(Timetable.id == id)
+        .first()
+    )
+    if timetable is None:
+        flash("Alocacao nao encontrada.", "warning")
+        return redirect(url_for("main.horarios"))
+    if timetable.turma is None:
+        flash("Alocacao sem turma vinculada.", "warning")
+        return redirect(url_for("main.horarios"))
+
+    turma_rows = _load_turma_timetable_rows(timetable.turma_id)
+    completeness = _turma_grade_completeness(timetable.turma, turma_rows)
+    if not completeness["is_complete"]:
+        flash("Conclua primeiro a grade da turma (disciplinas/tempos/salas) para depois alocar professores.", "warning")
+        return redirect(url_for("main.turma_quadro", id=timetable.turma_id))
+
+    available_professores = _available_professores_for_timetable(timetable)
+    form = ProfessorAssignmentForm()
+    form.professor_id.choices = [(professor.id, professor.username) for professor in available_professores]
+    if not form.professor_id.choices:
+        flash("Nenhum professor apto e disponivel para este horario.", "warning")
+        return redirect(url_for("main.turma_quadro", id=timetable.turma_id))
+
+    allowed_ids = {professor_id for professor_id, _ in form.professor_id.choices}
+    if form.validate_on_submit():
+        if form.professor_id.data not in allowed_ids:
+            flash("Professor invalido para esta alocacao.", "warning")
+            return redirect(url_for("main.alocar_professor_timetable", id=timetable.id))
+        professor = db.session.get(User, form.professor_id.data)
+        if professor is None or professor.role != "professor":
+            flash("Professor selecionado e invalido.", "warning")
+            return redirect(url_for("main.alocar_professor_timetable", id=timetable.id))
+        if not professor_can_teach_disciplina(professor, timetable.disciplina_id):
+            flash("Professor sem aptidao para a disciplina da alocacao.", "danger")
+            return redirect(url_for("main.alocar_professor_timetable", id=timetable.id))
+        if not _professor_is_free_for_timetable(professor.id, timetable, exclude_timetable_id=timetable.id):
+            flash("Professor indisponivel para este horario.", "danger")
+            return redirect(url_for("main.alocar_professor_timetable", id=timetable.id))
+
+        timetable.professor_id = professor.id
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Nao foi possivel salvar a alocacao do professor.", "danger")
+            return redirect(url_for("main.alocar_professor_timetable", id=timetable.id))
+
+        flash("Professor alocado com sucesso.", "success")
+        return redirect(url_for("main.turma_quadro", id=timetable.turma_id))
+
+    if request.method == "GET":
+        if timetable.professor_id in allowed_ids:
+            form.professor_id.data = timetable.professor_id
+        else:
+            form.professor_id.data = form.professor_id.choices[0][0]
+
+    return render_template(
+        "timetable_professor_form.html",
+        title="Alocar Professor",
+        form=form,
+        timetable=timetable,
+    )
+
+
+@bp.route("/turma/<int:id>/alocar-professores-lote", methods=["GET", "POST"])
+@login_required
+@admin_required
+def alocar_professores_turma_lote(id):
+    turma = db.get_or_404(Turma, id)
+    timetables = _load_turma_timetable_rows(turma.id)
+    if not timetables:
+        flash("A turma ainda nao possui quadro gerado.", "warning")
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    completeness = _turma_grade_completeness(turma, timetables)
+    if not completeness["is_complete"]:
+        flash("Conclua primeiro a grade da turma (disciplinas/tempos/salas) para depois alocar professores.", "warning")
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    pending_timetables = [row for row in timetables if row.professor_id is None]
+    if not pending_timetables:
+        flash("Todos os horarios desta turma ja possuem professor.", "success")
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    form = BulkProfessorAssignmentForm()
+    options_by_timetable = _build_bulk_professor_options(pending_timetables)
+    timetable_by_id = {row.id: row for row in pending_timetables}
+
+    if form.validate_on_submit():
+        selected_by_timetable = _extract_bulk_assignment_payload(pending_timetables)
+        if not selected_by_timetable:
+            flash("Selecione ao menos um professor para alocar em lote.", "warning")
+            return redirect(url_for("main.alocar_professores_turma_lote", id=turma.id))
+
+        for timetable in pending_timetables:
+            if timetable.id not in selected_by_timetable:
+                continue
+            selected_professor_id = selected_by_timetable[timetable.id]
+            if selected_professor_id is None:
+                flash("Selecao de professor invalida em uma das linhas.", "warning")
+                return redirect(url_for("main.alocar_professores_turma_lote", id=turma.id))
+            allowed_ids = {professor_id for professor_id, _ in options_by_timetable.get(timetable.id, [])}
+            if selected_professor_id not in allowed_ids:
+                flash("Um professor selecionado nao esta apto/disponivel para o horario informado.", "warning")
+                return redirect(url_for("main.alocar_professores_turma_lote", id=turma.id))
+
+        for timetable_id, professor_id in selected_by_timetable.items():
+            professor = db.session.get(User, professor_id)
+            timetable = timetable_by_id.get(timetable_id)
+            if timetable is None or professor is None or professor.role != "professor":
+                flash("Dados de alocacao invalidos.", "warning")
+                return redirect(url_for("main.alocar_professores_turma_lote", id=turma.id))
+            if not professor_can_teach_disciplina(professor, timetable.disciplina_id):
+                flash(
+                    f"Professor {professor.username} nao e apto para {timetable.disciplina.nome if timetable.disciplina else 'a disciplina'}.",
+                    "danger",
+                )
+                return redirect(url_for("main.alocar_professores_turma_lote", id=turma.id))
+            if not _professor_is_free_for_timetable(professor.id, timetable, exclude_timetable_id=timetable.id):
+                flash(
+                    f"Professor {professor.username} ficou indisponivel para {timetable.dia} {timetable.hora_inicio}-{timetable.hora_fim}.",
+                    "danger",
+                )
+                return redirect(url_for("main.alocar_professores_turma_lote", id=turma.id))
+
+        internal_conflict = _has_bulk_internal_professor_conflict(
+            selected_by_timetable=selected_by_timetable,
+            timetable_by_id=timetable_by_id,
+        )
+        if internal_conflict:
+            professor = db.session.get(User, internal_conflict["professor_id"])
+            timetable_a = internal_conflict["timetable_a"]
+            timetable_b = internal_conflict["timetable_b"]
+            professor_name = professor.username if professor else "Professor"
+            flash(
+                (
+                    f"Conflito na selecao em lote: {professor_name} foi escolhido para dois horarios sobrepostos "
+                    f"({timetable_a.dia} {timetable_a.hora_inicio}-{timetable_a.hora_fim} e "
+                    f"{timetable_b.dia} {timetable_b.hora_inicio}-{timetable_b.hora_fim})."
+                ),
+                "danger",
+            )
+            return redirect(url_for("main.alocar_professores_turma_lote", id=turma.id))
+
+        for timetable_id, professor_id in selected_by_timetable.items():
+            timetable_by_id[timetable_id].professor_id = professor_id
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Nao foi possivel salvar a alocacao em lote.", "danger")
+            return redirect(url_for("main.alocar_professores_turma_lote", id=turma.id))
+
+        flash(f"Alocacao em lote concluida para {len(selected_by_timetable)} horario(s).", "success")
+        return redirect(url_for("main.turma_quadro", id=turma.id))
+
+    return render_template(
+        "turma_bulk_professor_form.html",
+        title="Alocar Professores em Lote",
+        form=form,
+        turma=turma,
+        pending_timetables=pending_timetables,
+        options_by_timetable=options_by_timetable,
+        field_name_for=_bulk_assignment_field_name,
+    )
 
 
 # CRUD Professores
@@ -1479,6 +2152,139 @@ def delete_aluno(id):
 
 # Alocacao de alunos em turmas
 
+
+def _try_create_matricula(aluno_id, turma_id):
+    if aluno_turma_exists(aluno_id, turma_id):
+        return False, "Este aluno ja esta alocado nesta turma.", "warning"
+    turma_same_semestre = aluno_turma_same_semestre(aluno_id, turma_id)
+    if turma_same_semestre is not None:
+        return (
+            False,
+            (
+                "Este aluno ja pertence a outra turma no mesmo semestre letivo "
+                f"({turma_same_semestre.semestre_letivo} - {turma_same_semestre.codigo})."
+            ),
+            "warning",
+        )
+    if turma_capacity_reached(turma_id):
+        return False, "Nao foi possivel alocar: capacidade prevista da turma foi atingida.", "warning"
+    if aluno_has_schedule_conflict(aluno_id, turma_id):
+        return False, "Nao foi possivel alocar: conflito de horario para este aluno.", "warning"
+
+    matricula = Matricula(aluno_id=aluno_id, turma_id=turma_id)
+    db.session.add(matricula)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return False, "Nao foi possivel criar a alocacao do aluno.", "danger"
+
+    return True, "Aluno alocado com sucesso.", "success"
+
+
+@bp.route("/turma/<int:id>/alunos", methods=["GET", "POST"])
+@login_required
+@admin_required
+def turma_alunos(id):
+    turma = (
+        Turma.query.options(joinedload(Turma.curso))
+        .filter(Turma.id == id)
+        .first_or_404()
+    )
+    form = TurmaMatriculaForm()
+
+    matriculas = (
+        Matricula.query.options(joinedload(Matricula.aluno))
+        .join(Matricula.aluno)
+        .filter(Matricula.turma_id == turma.id)
+        .order_by(Aluno.nome.asc())
+        .all()
+    )
+    matriculados_ids = {item.aluno_id for item in matriculas}
+    alunos_bloqueados_semestre = {
+        aluno_id
+        for (aluno_id,) in db.session.query(Matricula.aluno_id)
+        .join(Turma, Turma.id == Matricula.turma_id)
+        .filter(
+            Turma.semestre_letivo == turma.semestre_letivo,
+            Matricula.turma_id != turma.id,
+        )
+        .all()
+    }
+    alunos_disponiveis = (
+        Aluno.query.order_by(Aluno.nome.asc())
+        .all()
+    )
+    form.aluno_id.choices = [
+        (aluno.id, f"{aluno.nome} ({aluno.matricula})")
+        for aluno in alunos_disponiveis
+        if aluno.id not in matriculados_ids and aluno.id not in alunos_bloqueados_semestre
+    ]
+
+    if form.validate_on_submit():
+        if not form.aluno_id.choices:
+            flash("Nao ha alunos elegiveis para matricula nesta turma neste semestre letivo.", "warning")
+            return redirect(url_for("main.turma_alunos", id=turma.id))
+
+        allowed_ids = {aluno_id for aluno_id, _ in form.aluno_id.choices}
+        if form.aluno_id.data not in allowed_ids:
+            flash("Aluno invalido para esta turma.", "warning")
+            return redirect(url_for("main.turma_alunos", id=turma.id))
+
+        success, message, category = _try_create_matricula(form.aluno_id.data, turma.id)
+        flash(message, category)
+        return redirect(url_for("main.turma_alunos", id=turma.id))
+
+    delete_form = DeleteForm()
+    return render_template(
+        "turma_alunos.html",
+        turma=turma,
+        form=form,
+        delete_form=delete_form,
+        matriculas=matriculas,
+        vagas_restantes=max((turma.quantidade_alunos or 0) - len(matriculas), 0) if turma.quantidade_alunos else None,
+    )
+
+
+@bp.route("/turma/<int:turma_id>/matricula/<int:matricula_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def delete_turma_matricula(turma_id, matricula_id):
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash("Requisicao invalida.", "danger")
+        return redirect(url_for("main.turma_alunos", id=turma_id))
+
+    turma = db.get_or_404(Turma, turma_id)
+    matricula = db.get_or_404(Matricula, matricula_id)
+    if matricula.turma_id != turma.id:
+        flash("Matricula nao pertence a turma informada.", "warning")
+        return redirect(url_for("main.turma_alunos", id=turma.id))
+
+    turma_timetable_ids = [
+        row.id for row in Timetable.query.with_entities(Timetable.id).filter_by(turma_id=turma.id).all()
+    ]
+    has_presencas = 0
+    if turma_timetable_ids:
+        has_presencas = Presenca.query.filter(
+            Presenca.aluno_id == matricula.aluno_id,
+            Presenca.timetable_id.in_(turma_timetable_ids),
+        ).count()
+    if has_presencas > 0:
+        flash("Nao e possivel remover alocacao com chamadas registradas.", "warning")
+        return redirect(url_for("main.turma_alunos", id=turma.id))
+
+    db.session.delete(matricula)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash("Nao foi possivel remover a alocacao.", "danger")
+        return redirect(url_for("main.turma_alunos", id=turma.id))
+    flash("Alocacao removida com sucesso.", "success")
+    return redirect(url_for("main.turma_alunos", id=turma.id))
+
+
 @bp.route("/matriculas")
 @login_required
 @admin_required
@@ -1514,24 +2320,11 @@ def new_matricula():
         if not form.aluno_id.choices or not form.turma_id.choices:
             flash("Cadastre ao menos um aluno e uma turma antes de alocar.", "warning")
             return redirect(url_for("main.matriculas"))
-        if aluno_turma_exists(form.aluno_id.data, form.turma_id.data):
-            flash("Este aluno ja esta alocado nesta turma.", "warning")
+        success, message, category = _try_create_matricula(form.aluno_id.data, form.turma_id.data)
+        if not success:
+            flash(message, category)
             return render_template("matricula_form.html", title="Nova Alocacao de Aluno", form=form)
-        if turma_capacity_reached(form.turma_id.data):
-            flash("Nao foi possivel alocar: capacidade prevista da turma foi atingida.", "warning")
-            return render_template("matricula_form.html", title="Nova Alocacao de Aluno", form=form)
-        if aluno_has_schedule_conflict(form.aluno_id.data, form.turma_id.data):
-            flash("Nao foi possivel alocar: conflito de horario para este aluno.", "warning")
-            return render_template("matricula_form.html", title="Nova Alocacao de Aluno", form=form)
-        matricula = Matricula(aluno_id=form.aluno_id.data, turma_id=form.turma_id.data)
-        db.session.add(matricula)
-        try:
-            db.session.commit()
-        except IntegrityError:
-            db.session.rollback()
-            flash("Nao foi possivel criar a alocacao do aluno.", "danger")
-            return render_template("matricula_form.html", title="Nova Alocacao de Aluno", form=form)
-        flash("Aluno alocado com sucesso.", "success")
+        flash(message, category)
         return redirect(url_for("main.matriculas"))
     return render_template("matricula_form.html", title="Nova Alocacao de Aluno", form=form)
 
@@ -1586,7 +2379,10 @@ def new_timetable():
     form.turma_id.choices = [
         (
             turma.id,
-            f"{turma.curso.nome if turma.curso else 'Curso'} | {turma.codigo} | {turma.semestre_letivo} | {turma.periodo}o periodo",
+            (
+                f"{turma.curso.nome if turma.curso else 'Curso'} | {turma.codigo} | "
+                f"{turma.semestre_letivo} | {turma.periodo}o periodo | {get_turno_label(turma.turno)}"
+            ),
         )
         for turma in turmas
     ]
@@ -1621,6 +2417,19 @@ def new_timetable():
             return redirect(url_for("main.new_timetable"))
         if form.disciplina_id.data not in allowed_disciplina_ids:
             flash("Disciplina nao pertence a grade curricular da turma/periodo selecionado.", "danger")
+            return redirect(url_for("main.new_timetable"))
+        duplicate_disciplina = Timetable.query.filter_by(
+            turma_id=selected_turma_id,
+            disciplina_id=form.disciplina_id.data,
+        ).first()
+        if duplicate_disciplina is not None:
+            flash("Esta disciplina ja foi alocada no quadro da turma.", "warning")
+            return redirect(url_for("main.new_timetable"))
+        if form.horario_id.data not in set(allowed_slot_ids_for_turno(selected_turma.turno)):
+            flash(
+                f"Horario invalido para o turno da turma ({get_turno_label(selected_turma.turno)}).",
+                "warning",
+            )
             return redirect(url_for("main.new_timetable"))
 
         slot_start, slot_end = get_shift_bounds(form.horario_id.data)
@@ -1713,7 +2522,10 @@ def edit_timetable(id):
     form.turma_id.choices = [
         (
             turma.id,
-            f"{turma.curso.nome if turma.curso else 'Curso'} | {turma.codigo} | {turma.semestre_letivo} | {turma.periodo}o periodo",
+            (
+                f"{turma.curso.nome if turma.curso else 'Curso'} | {turma.codigo} | "
+                f"{turma.semestre_letivo} | {turma.periodo}o periodo | {get_turno_label(turma.turno)}"
+            ),
         )
         for turma in turmas
     ]
@@ -1742,6 +2554,20 @@ def edit_timetable(id):
             return redirect(url_for("main.edit_timetable", id=id))
         if form.disciplina_id.data not in allowed_disciplina_ids:
             flash("Disciplina nao pertence a grade curricular da turma/periodo selecionado.", "danger")
+            return redirect(url_for("main.edit_timetable", id=id))
+        duplicate_disciplina = Timetable.query.filter(
+            Timetable.turma_id == selected_turma_id,
+            Timetable.disciplina_id == form.disciplina_id.data,
+            Timetable.id != id,
+        ).first()
+        if duplicate_disciplina is not None:
+            flash("Esta disciplina ja foi alocada no quadro da turma.", "warning")
+            return redirect(url_for("main.edit_timetable", id=id))
+        if form.horario_id.data not in set(allowed_slot_ids_for_turno(selected_turma.turno)):
+            flash(
+                f"Horario invalido para o turno da turma ({get_turno_label(selected_turma.turno)}).",
+                "warning",
+            )
             return redirect(url_for("main.edit_timetable", id=id))
 
         slot_start, slot_end = get_shift_bounds(form.horario_id.data)

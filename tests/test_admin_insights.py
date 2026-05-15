@@ -121,9 +121,8 @@ def test_admin_dashboard_hides_insights_panel(client, login, user_factory):
     response = client.get("/admin")
 
     assert response.status_code == 200
-    assert b"Dashboard Administrativo" in response.data
+    assert b"Painel Administrativo" in response.data
     assert b"Insights para Decisao" not in response.data
-    assert b"Turmas Sem Alunos" not in response.data
 
 
 def test_admin_insights_page_is_available(client, login, user_factory):

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% block title %}Alunos da Turma{% endblock %}
+
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Matricula por Turma</p>
+      <h1>Alunos da Turma {{ turma.codigo }}</h1>
+      <p class="page-lead">
+        {{ turma.curso.nome if turma.curso else 'Curso removido' }} |
+        {{ turma.semestre_letivo }} |
+        {{ turma.periodo }}o periodo
+      </p>
+    </div>
+    <a href="{{ url_for('main.turmas') }}" class="btn btn-outline-secondary">Voltar para Turmas</a>
+  </div>
+
+  <div class="surface form-shell mb-4">
+    <div class="page-head mb-3">
+      <div>
+        <h2 class="h4 mb-1">Matricular Aluno</h2>
+        {% if turma.quantidade_alunos %}
+        <p class="page-lead">Capacidade prevista: {{ turma.quantidade_alunos }} aluno(s){% if vagas_restantes is not none %} | Vagas restantes: {{ vagas_restantes }}{% endif %}</p>
+        {% else %}
+        <p class="page-lead">Sem limite de capacidade definido para esta turma.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <form method="POST" novalidate>
+      {{ form.hidden_tag() }}
+      {{ render_field(form.aluno_id) }}
+      {{ form.submit(class="btn btn-primary") }}
+    </form>
+  </div>
+
+  <div class="surface table-shell">
+    <div class="page-head mb-3">
+      <div>
+        <h2 class="h4 mb-1">Alunos Matriculados</h2>
+        <p class="page-lead mb-0">{{ matriculas|length }} aluno(s) vinculado(s) nesta turma.</p>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Aluno</th>
+            <th>Matricula</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in matriculas %}
+          <tr>
+            <td>{{ item.aluno.nome if item.aluno else 'Aluno removido' }}</td>
+            <td>{{ item.aluno.matricula if item.aluno else '-' }}</td>
+            <td class="actions-cell">
+              <form
+                method="POST"
+                action="{{ url_for('main.delete_turma_matricula', turma_id=turma.id, matricula_id=item.id) }}"
+                class="d-inline"
+                onsubmit="return confirm('Tem certeza que deseja remover este aluno da turma?');"
+              >
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="btn btn-sm btn-danger">Remover</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="3" class="text-center text-muted">Nenhum aluno matriculado nesta turma.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

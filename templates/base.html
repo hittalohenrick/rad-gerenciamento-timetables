@@ -18,52 +18,37 @@
   </head>
   <body>
     {% if current_user.is_authenticated %}
+    {% set current_endpoint = request.endpoint or '' %}
     <div class="app-shell">
       <aside class="app-sidebar">
         <a class="app-brand" href="{{ url_for('main.index') }}">Sistema de Timetables</a>
+        <p class="sidebar-subtitle">Gestao de Faculdade de TI</p>
 
         <nav class="sidebar-nav">
-          <ul class="nav flex-column gap-1">
+          <ul class="nav flex-column gap-3">
             {% if current_user.is_admin() %}
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.admin_dashboard') }}">Dashboard</a>
+            <li class="nav-group">
+              <p class="sidebar-group-title">Painel</p>
+              <a class="sidebar-link {{ 'is-active' if current_endpoint == 'main.admin_dashboard' else '' }}" href="{{ url_for('main.admin_dashboard') }}">Painel Operacional</a>
+              <a class="sidebar-link {{ 'is-active' if current_endpoint == 'main.admin_insights' else '' }}" href="{{ url_for('main.admin_insights') }}">Insights</a>
             </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.admin_insights') }}">Insights</a>
+            <li class="nav-group">
+              <p class="sidebar-group-title">Estrutura Academica</p>
+              <a class="sidebar-link {{ 'is-active' if current_endpoint in ['main.salas', 'main.new_sala', 'main.edit_sala'] else '' }}" href="{{ url_for('main.salas') }}">Salas</a>
+              <a class="sidebar-link {{ 'is-active' if current_endpoint in ['main.cursos', 'main.new_curso', 'main.edit_curso'] else '' }}" href="{{ url_for('main.cursos') }}">Cursos</a>
+              <a class="sidebar-link {{ 'is-active' if current_endpoint in ['main.grades', 'main.new_grade', 'main.edit_grade', 'main.grade_items', 'main.new_grade_item', 'main.edit_grade_item'] else '' }}" href="{{ url_for('main.grades') }}">Grades Curriculares</a>
+              <a class="sidebar-link {{ 'is-active' if current_endpoint in ['main.disciplinas', 'main.new_disciplina', 'main.edit_disciplina'] else '' }}" href="{{ url_for('main.disciplinas') }}">Disciplinas</a>
             </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.salas') }}">Salas</a>
-            </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.cursos') }}">Cursos</a>
-            </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.grades') }}">Grades</a>
-            </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.horarios') }}">Hor&aacute;rios</a>
-            </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.turmas') }}">Turmas</a>
-            </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.disciplinas') }}">Disciplinas</a>
-            </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.professores') }}">Professores</a>
-            </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.alunos') }}">Alunos</a>
-            </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.matriculas') }}">Aloca&ccedil;&atilde;o de Alunos</a>
-            </li>
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.new_timetable') }}">Nova Aloca&ccedil;&atilde;o</a>
+            <li class="nav-group">
+              <p class="sidebar-group-title">Oferta e Alocacao</p>
+              <a class="sidebar-link {{ 'is-active' if current_endpoint in ['main.turmas', 'main.new_turma', 'main.edit_turma', 'main.turma_quadro', 'main.turma_alunos', 'main.delete_turma_matricula', 'main.alocar_professor_timetable', 'main.alocar_professores_turma_lote'] else '' }}" href="{{ url_for('main.turmas') }}">Turmas</a>
+              <a class="sidebar-link {{ 'is-active' if current_endpoint in ['main.professores', 'main.new_professor', 'main.edit_professor'] else '' }}" href="{{ url_for('main.professores') }}">Professores</a>
+              <a class="sidebar-link {{ 'is-active' if current_endpoint in ['main.alunos', 'main.new_aluno', 'main.edit_aluno'] else '' }}" href="{{ url_for('main.alunos') }}">Alunos</a>
             </li>
             {% else %}
-            <li class="nav-item">
-              <a class="sidebar-link" href="{{ url_for('main.professor_dashboard') }}">Minhas Turmas</a>
+            <li class="nav-group">
+              <p class="sidebar-group-title">Professor</p>
+              <a class="sidebar-link {{ 'is-active' if current_endpoint == 'main.professor_dashboard' else '' }}" href="{{ url_for('main.professor_dashboard') }}">Minhas Turmas</a>
             </li>
             {% endif %}
           </ul>
@@ -71,7 +56,8 @@
 
         <div class="sidebar-user">
           <span class="sidebar-greeting">Ol&aacute;, {{ current_user.username }}</span>
-          <a class="sidebar-link" href="{{ url_for('main.change_password') }}">Trocar Senha</a>
+          <span class="sidebar-role">{{ 'Administrador' if current_user.is_admin() else 'Professor' }}</span>
+          <a class="sidebar-link {{ 'is-active' if current_endpoint == 'main.change_password' else '' }}" href="{{ url_for('main.change_password') }}">Trocar Senha</a>
           <a class="sidebar-link sidebar-link-logout" href="{{ url_for('main.logout') }}">Sair</a>
         </div>
       </aside>

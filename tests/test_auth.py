@@ -17,4 +17,4 @@ def test_admin_login_redirects_to_dashboard(login, user_factory):
     response = login("admin", "Admin1234")
 
     assert response.status_code == 200
-    assert b"Dashboard Administrativo" in response.data
+    assert b"Painel Administrativo" in response.data

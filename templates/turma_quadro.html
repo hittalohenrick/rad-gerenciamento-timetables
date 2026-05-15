@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Quadro da Turma{% endblock %}
+{% block content %}
+<section class="stagger-in">
+  <div class="page-head">
+    <div>
+      <p class="eyebrow">Planejamento Semestral</p>
+      <h1>Quadro da Turma {{ turma.codigo }}</h1>
+      <p class="page-lead">
+        {{ turma.curso.nome if turma.curso else 'Curso removido' }} | {{ turma.semestre_letivo }} | {{ turma.periodo }}o periodo | {{ turno_label }}
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('main.turma_alunos', id=turma.id) }}" class="btn btn-outline-secondary">Alunos</a>
+      <a href="{{ url_for('main.turmas') }}" class="btn btn-outline-primary">Voltar</a>
+    </div>
+  </div>
+
+  <div class="surface p-3 mb-4">
+    <p class="mb-2"><strong>Disciplinas do periodo:</strong></p>
+    {% if disciplinas %}
+    <div class="d-flex flex-wrap gap-2">
+      {% for disciplina in disciplinas %}
+      <span class="badge bg-light text-dark">{{ disciplina.nome }}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Nenhuma disciplina encontrada para este periodo na grade ativa.</p>
+    {% endif %}
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <form method="POST" action="{{ url_for('main.gerar_turma_quadro', id=turma.id) }}">
+      {{ generate_form.hidden_tag() }}
+      <button type="submit" class="btn btn-primary">Gerar Quadro Automatico</button>
+    </form>
+    {% if timetables %}
+    <form method="POST" action="{{ url_for('main.gerar_turma_quadro', id=turma.id) }}" onsubmit="return confirm('Substituir quadro atual da turma?');">
+      {{ generate_form.hidden_tag() }}
+      <input type="hidden" name="replace" value="1" />
+      <button type="submit" class="btn btn-outline-danger">Regenerar Quadro</button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('main.new_timetable') }}" class="btn btn-outline-secondary">Adicionar Slot Manual</a>
+    {% if completeness.is_complete and pending_teacher_count > 0 %}
+    <a href="{{ url_for('main.alocar_professores_turma_lote', id=turma.id) }}" class="btn btn-success">Alocar Professores em Lote</a>
+    {% endif %}
+  </div>
+
+  {% if completeness.is_complete %}
+  <div class="alert alert-success">
+    Grade da turma completa: todas as disciplinas do periodo estao no quadro.
+  </div>
+  {% else %}
+  <div class="alert alert-warning">
+    Grade da turma incompleta. Ajuste o quadro antes de finalizar a alocacao de professores.
+    {% if missing_disciplinas %}
+    <div class="mt-2"><strong>Faltando:</strong> {{ missing_disciplinas|join(', ') }}</div>
+    {% endif %}
+    {% if extra_disciplinas %}
+    <div class="mt-1"><strong>Extras:</strong> {{ extra_disciplinas|join(', ') }}</div>
+    {% endif %}
+    {% if duplicate_disciplinas %}
+    <div class="mt-1"><strong>Duplicadas:</strong> {{ duplicate_disciplinas|join(', ') }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if timetables %}
+  <div class="alert alert-info">
+    {{ pending_teacher_count }} horario(s) sem professor alocado.
+  </div>
+
+  <div class="surface table-shell">
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Horario</th>
+            {% for day in schedule_grid.days %}
+            <th>{{ day }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in schedule_grid.rows %}
+          <tr>
+            <td><strong>{{ row.slot_label }}</strong></td>
+            {% for cell in row.cells %}
+            <td>
+              {% if cell.timetable %}
+              <div><strong>{{ cell.timetable.disciplina.nome if cell.timetable.disciplina else 'Disciplina removida' }}</strong></div>
+              <div class="small text-muted">Sala: {{ cell.timetable.sala.nome if cell.timetable.sala else 'Sala removida' }}</div>
+              <div class="small {% if cell.timetable.professor %}text-muted{% else %}text-danger{% endif %}">
+                Professor: {{ cell.timetable.professor.username if cell.timetable.professor else 'Pendente' }}
+              </div>
+              <a href="{{ url_for('main.alocar_professor_timetable', id=cell.timetable.id) }}" class="btn btn-sm btn-edit mt-2">
+                {{ 'Trocar Professor' if cell.timetable.professor else 'Alocar Professor' }}
+              </a>
+              <a href="{{ url_for('main.edit_timetable', id=cell.timetable.id) }}" class="btn btn-sm btn-outline-secondary mt-2">Editar Slot</a>
+              {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if schedule_grid.extra_rows %}
+  <div class="surface table-shell mt-4">
+    <h2 class="h5">Alocacoes fora do padrao do turno</h2>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Dia</th>
+            <th>Horario</th>
+            <th>Disciplina</th>
+            <th>Sala</th>
+            <th>Professor</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in schedule_grid.extra_rows %}
+          <tr>
+            <td>{{ t.dia }}</td>
+            <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
+            <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
+            <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
+            <td>{{ t.professor.username if t.professor else 'Pendente' }}</td>
+            <td class="actions-cell">
+              <a href="{{ url_for('main.alocar_professor_timetable', id=t.id) }}" class="btn btn-sm btn-edit">Alocar Professor</a>
+              <a href="{{ url_for('main.edit_timetable', id=t.id) }}" class="btn btn-sm btn-outline-secondary">Editar Slot</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="surface p-4">
+    <h2 class="h5">Nenhum horario cadastrado para esta turma</h2>
+    <p class="text-muted mb-0">Use "Gerar Quadro Automatico" para distribuir as disciplinas do periodo de segunda a sexta.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

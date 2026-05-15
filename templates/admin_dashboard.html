@@ -1,164 +1,149 @@
 {% extends "base.html" %}
-{% block title %}Dashboard Admin{% endblock %}
+{% block title %}Painel Admin{% endblock %}
 {% block content %}
 <section class="stagger-in">
   <div class="page-head">
     <div>
-      <p class="eyebrow">Gestao Academica</p>
-      <h1>Dashboard Administrativo</h1>
-      <p class="page-lead">Visao geral da operacao: estrutura, turmas, docentes e alunos.</p>
+      <p class="eyebrow">Operacao Academica</p>
+      <h1>Painel Administrativo</h1>
+      <p class="page-lead">Controle o fluxo completo: estrutura, oferta, horarios, docentes e matriculas.</p>
+    </div>
+    <div class="action-row mb-0">
+      <a href="{{ url_for('main.new_turma') }}" class="btn btn-primary">Nova Turma</a>
+      <a href="{{ url_for('main.new_timetable') }}" class="btn btn-success">Nova Alocacao</a>
+      <a href="{{ url_for('main.admin_insights') }}" class="btn btn-outline-secondary">Ver Insights</a>
     </div>
   </div>
 
-  <div class="dashboard-stats">
-    <div class="stat-card"><h3>{{ cursos|length }}</h3><p>Cursos</p></div>
-    <div class="stat-card"><h3>{{ grades|length }}</h3><p>Grades</p></div>
-    <div class="stat-card"><h3>{{ salas|length }}</h3><p>Salas</p></div>
-    <div class="stat-card"><h3>{{ professores|length }}</h3><p>Professores</p></div>
-    <div class="stat-card"><h3>{{ disciplinas|length }}</h3><p>Disciplinas</p></div>
-    <div class="stat-card"><h3>{{ turmas|length }}</h3><p>Turmas de Oferta</p></div>
-    <div class="stat-card"><h3>{{ alunos|length }}</h3><p>Alunos</p></div>
-    <div class="stat-card"><h3>{{ matriculas_count }}</h3><p>Matriculas</p></div>
-    <div class="stat-card"><h3>{{ timetables|length }}</h3><p>Alocacoes Ativas</p></div>
-  </div>
-
-  <div class="row mb-4">
-    <div class="col-md-6 col-lg-4 mb-3">
-      <div class="card h-100">
-        <div class="card-header">Cursos</div>
-        <div class="card-body text-center">
-          <p class="card-text">Cadastre os cursos base da instituicao.</p>
-          <a href="{{ url_for('main.cursos') }}" class="btn btn-primary">Gerenciar Cursos</a>
-        </div>
-      </div>
+  <div class="dashboard-stats dashboard-stats-admin mb-4">
+    <div class="stat-card">
+      <h3>{{ operation_panel.maturidade_quadro }}%</h3>
+      <p>Maturidade dos Quadros</p>
     </div>
-    <div class="col-md-6 col-lg-4 mb-3">
-      <div class="card h-100">
-        <div class="card-header">Grades Curriculares</div>
-        <div class="card-body text-center">
-          <p class="card-text">Monte disciplinas por periodo para cada curso.</p>
-          <a href="{{ url_for('main.grades') }}" class="btn btn-primary">Gerenciar Grades</a>
-        </div>
-      </div>
+    <div class="stat-card">
+      <h3>{{ operation_panel.horarios_sem_professor|length }}</h3>
+      <p>Horarios Sem Professor</p>
     </div>
-    <div class="col-md-6 col-lg-4 mb-3">
-      <div class="card h-100">
-        <div class="card-header">Salas</div>
-        <div class="card-body text-center">
-          <p class="card-text">Gerencie os ambientes de aula e laboratorios.</p>
-          <a href="{{ url_for('main.salas') }}" class="btn btn-primary">Gerenciar Salas</a>
-        </div>
-      </div>
+    <div class="stat-card">
+      <h3>{{ operation_panel.turmas_sem_quadro|length }}</h3>
+      <p>Turmas Sem Quadro</p>
     </div>
-    <div class="col-md-6 col-lg-4 mb-3">
-      <div class="card h-100">
-        <div class="card-header">Professores</div>
-        <div class="card-body text-center">
-          <p class="card-text">Administre usuarios docentes e credenciais.</p>
-          <a href="{{ url_for('main.professores') }}" class="btn btn-primary">Gerenciar Professores</a>
-        </div>
-      </div>
+    <div class="stat-card">
+      <h3>{{ operation_panel.turmas_sem_alunos|length }}</h3>
+      <p>Turmas Sem Alunos</p>
     </div>
-    <div class="col-md-6 col-lg-4 mb-3">
-      <div class="card h-100">
-        <div class="card-header">Disciplinas</div>
-        <div class="card-body text-center">
-          <p class="card-text">Mantenha a grade de disciplinas atualizada.</p>
-          <a href="{{ url_for('main.disciplinas') }}" class="btn btn-primary">Gerenciar Disciplinas</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4 mb-3">
-      <div class="card h-100">
-        <div class="card-header">Turmas de Oferta</div>
-        <div class="card-body text-center">
-          <p class="card-text">Organize turmas por semestre para cada ciclo letivo.</p>
-          <a href="{{ url_for('main.turmas') }}" class="btn btn-primary">Gerenciar Turmas</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4 mb-3">
-      <div class="card h-100">
-        <div class="card-header">Alunos</div>
-        <div class="card-body text-center">
-          <p class="card-text">Cadastre estudantes e mantenha matricula ativa.</p>
-          <a href="{{ url_for('main.alunos') }}" class="btn btn-primary">Gerenciar Alunos</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-4 mb-3">
-      <div class="card h-100">
-        <div class="card-header">Alocacao de Alunos</div>
-        <div class="card-body text-center">
-          <p class="card-text">Distribua alunos nas turmas disponiveis.</p>
-          <a href="{{ url_for('main.matriculas') }}" class="btn btn-primary">Gerenciar Alocacoes</a>
-        </div>
-      </div>
+    <div class="stat-card">
+      <h3>{{ matriculas_count }}</h3>
+      <p>Matriculas Ativas</p>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span>Alocacoes de Timetable</span>
-      <a href="{{ url_for('main.new_timetable') }}" class="btn btn-success btn-sm">Nova Alocacao</a>
+  <div class="surface section-shell mb-4">
+    <div class="section-head">
+      <h2 class="section-title">Fluxo Operacional</h2>
+      <p class="section-subtitle">Etapas para deixar a oferta academica pronta.</p>
     </div>
-    <div class="card-body">
-      {% if timetables %}
-      <div class="table-shell">
-        <div class="table-responsive">
-          <table class="table table-hover">
-            <thead>
-              <tr>
-                <th>Dia</th>
-                <th>Horario</th>
-                <th>Turma</th>
-                <th>Sala</th>
-                <th>Professor</th>
-                <th>Disciplina</th>
-                <th>Acoes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for t in timetables %}
-              <tr>
-                <td>{{ t.dia }}</td>
-                <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
-                <td>
-                  {% if t.turma %}
-                  {{ t.turma.curso.nome if t.turma.curso else 'Curso' }} | {{ t.turma.codigo }} | {{ t.turma.semestre_letivo }}
-                  {% else %}
-                  <span class="text-muted">Sem turma</span>
-                  {% endif %}
-                </td>
-                <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
-                <td>{{ t.professor.username if t.professor else 'Professor removido' }}</td>
-                <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
-                <td class="actions-cell">
-                  <a href="{{ url_for('main.edit_timetable', id=t.id) }}" class="btn btn-sm btn-edit">Editar</a>
-                  <form
-                    method="POST"
-                    action="{{ url_for('main.delete_timetable', id=t.id) }}"
-                    class="d-inline"
-                    onsubmit="return confirm('Tem certeza que deseja deletar esta alocacao?');"
-                  >
-                    {{ delete_form.hidden_tag() }}
-                    <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+    <div class="pipeline-grid">
+      {% for etapa in operation_panel.fluxo %}
+      <article class="pipeline-card pipeline-{{ etapa.status }}">
+        <div class="pipeline-top">
+          <span class="pipeline-order">{{ etapa.ordem }}</span>
+          <span class="pipeline-status">{{ etapa.status|upper }}</span>
+        </div>
+        <h3>{{ etapa.titulo }}</h3>
+        <p>{{ etapa.descricao }}</p>
+        <p class="pipeline-meta">{{ etapa.meta }}</p>
+        <a href="{{ etapa.cta_url }}" class="btn btn-sm btn-edit">{{ etapa.cta_label }}</a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-xl-4">
+      <div class="surface section-shell h-100">
+        <div class="section-head">
+          <h2 class="section-title">Pendencias</h2>
+        </div>
+        <ul class="clean-list">
+          <li class="{{ 'text-danger' if operation_panel.cursos_sem_grade|length else 'text-success' }}">
+            Cursos sem grade ativa: {{ operation_panel.cursos_sem_grade|length }}
+          </li>
+          <li class="{{ 'text-danger' if operation_panel.professores_sem_aptidao|length else 'text-success' }}">
+            Professores sem aptidao: {{ operation_panel.professores_sem_aptidao|length }}
+          </li>
+          <li class="{{ 'text-warning' if operation_panel.turmas_sem_quadro|length else 'text-success' }}">
+            Turmas sem quadro: {{ operation_panel.turmas_sem_quadro|length }}
+          </li>
+          <li class="{{ 'text-warning' if operation_panel.turmas_sem_alunos|length else 'text-success' }}">
+            Turmas sem alunos: {{ operation_panel.turmas_sem_alunos|length }}
+          </li>
+          <li class="{{ 'text-warning' if operation_panel.horarios_sem_professor|length else 'text-success' }}">
+            Horarios sem professor: {{ operation_panel.horarios_sem_professor|length }}
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="col-xl-8">
+      <div class="surface section-shell h-100">
+        <div class="section-head">
+          <h2 class="section-title">Mapa Rapido</h2>
+          <p class="section-subtitle">Resumo da base cadastrada.</p>
+        </div>
+        <div class="mini-kpi-grid">
+          <div class="mini-kpi"><span>Cursos</span><strong>{{ cursos|length }}</strong></div>
+          <div class="mini-kpi"><span>Grades</span><strong>{{ grades|length }}</strong></div>
+          <div class="mini-kpi"><span>Salas</span><strong>{{ salas|length }}</strong></div>
+          <div class="mini-kpi"><span>Disciplinas</span><strong>{{ disciplinas|length }}</strong></div>
+          <div class="mini-kpi"><span>Professores</span><strong>{{ professores|length }}</strong></div>
+          <div class="mini-kpi"><span>Turmas</span><strong>{{ turmas|length }}</strong></div>
+          <div class="mini-kpi"><span>Alunos</span><strong>{{ alunos|length }}</strong></div>
+          <div class="mini-kpi"><span>Horarios</span><strong>{{ timetables|length }}</strong></div>
         </div>
       </div>
-      {% else %}
-      <div class="empty-state">
-        <h5>Nenhuma alocacao cadastrada</h5>
-        <p>Comece criando uma nova alocacao de timetable.</p>
-        <a href="{{ url_for('main.new_timetable') }}" class="btn btn-primary">Criar Primeira Alocacao</a>
-      </div>
-      {% endif %}
     </div>
+  </div>
+
+  <div class="surface section-shell">
+    <div class="section-head">
+      <h2 class="section-title">Alocacoes Sem Professor</h2>
+      <p class="section-subtitle">Priorize estas aulas para concluir a grade da turma.</p>
+    </div>
+    {% if operation_panel.horarios_sem_professor %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Turma</th>
+            <th>Dia</th>
+            <th>Horario</th>
+            <th>Disciplina</th>
+            <th>Sala</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in operation_panel.horarios_sem_professor[:12] %}
+          <tr>
+            <td>{{ t.turma.curso.nome if t.turma and t.turma.curso else 'Curso' }} | {{ t.turma.codigo if t.turma else '-' }}</td>
+            <td>{{ t.dia }}</td>
+            <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
+            <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
+            <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
+            <td>
+              <a href="{{ url_for('main.alocar_professor_timetable', id=t.id) }}" class="btn btn-sm btn-primary">Alocar Professor</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <h5>Sem pendencias de alocacao docente</h5>
+      <p>As aulas cadastradas ja possuem professor atribuido.</p>
+    </div>
+    {% endif %}
   </div>
 </section>
 {% endblock %}

@@ -39,6 +39,7 @@ def test_admin_full_turma_crud_flow(client, login, user_factory):
             "codigo": "ADS-1N",
             "semestre_letivo": "2026.2",
             "periodo": "1",
+            "turno": "noturno",
             "quantidade_alunos": "40",
         },
         follow_redirects=True,
@@ -48,6 +49,7 @@ def test_admin_full_turma_crud_flow(client, login, user_factory):
 
     turma = Turma.query.filter_by(curso_id=curso.id, codigo="ADS-1N", semestre_letivo="2026.2").first()
     assert turma is not None
+    assert turma.turno == "noturno"
     assert turma.quantidade_alunos == 40
 
     update_response = client.post(
@@ -57,6 +59,7 @@ def test_admin_full_turma_crud_flow(client, login, user_factory):
             "codigo": "ADS-1T",
             "semestre_letivo": "2026.2",
             "periodo": "1",
+            "turno": "vespertino",
             "quantidade_alunos": "35",
         },
         follow_redirects=True,
@@ -67,6 +70,7 @@ def test_admin_full_turma_crud_flow(client, login, user_factory):
     updated_turma = db.session.get(Turma, turma.id)
     assert updated_turma is not None
     assert updated_turma.codigo == "ADS-1T"
+    assert updated_turma.turno == "vespertino"
     assert updated_turma.quantidade_alunos == 35
 
     delete_response = client.post(

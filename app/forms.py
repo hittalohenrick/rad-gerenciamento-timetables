@@ -36,6 +36,17 @@ SHIFT_SLOT_MAP = {
     slot_id: {"label": label, "start": start, "end": end}
     for slot_id, label, start, end in SHIFT_SLOTS
 }
+TURNO_CHOICES = [
+    ("matutino", "Matutino"),
+    ("vespertino", "Vespertino"),
+    ("noturno", "Noturno"),
+]
+TURNOS_VALIDOS = [value for value, _ in TURNO_CHOICES]
+SLOT_IDS_BY_TURNO = {
+    "matutino": ["manha_0700_0830", "manha_0900_1030"],
+    "vespertino": ["tarde_1300_1430", "tarde_1500_1630"],
+    "noturno": ["noite_1800_1930", "noite_2000_2130"],
+}
 NIGHT_SHIFT_ID = "noite_1800_1930"
 NIGHT_SHIFT_START = SHIFT_SLOT_MAP[NIGHT_SHIFT_ID]["start"]
 NIGHT_SHIFT_END = SHIFT_SLOT_MAP[NIGHT_SHIFT_ID]["end"]
@@ -54,6 +65,15 @@ def get_shift_label(slot_id):
     if not slot:
         return "Horario personalizado"
     return slot["label"]
+
+
+def get_turno_label(turno):
+    labels_by_turno = dict(TURNO_CHOICES)
+    return labels_by_turno.get(turno, "Nao definido")
+
+
+def allowed_slot_ids_for_turno(turno):
+    return list(SLOT_IDS_BY_TURNO.get(turno, SLOT_IDS_BY_TURNO["noturno"]))
 
 
 def resolve_shift_slot_id(hora_inicio, hora_fim):
@@ -165,6 +185,7 @@ class TurmaForm(FlaskForm):
     codigo = StringField("Codigo da Turma", validators=[DataRequired(), Length(min=2, max=30)])
     semestre_letivo = StringField("Semestre Letivo", validators=[DataRequired(), Length(min=4, max=20)])
     periodo = IntegerField("Periodo", validators=[DataRequired(), NumberRange(min=1, max=16)])
+    turno = SelectField("Turno", choices=TURNO_CHOICES, validators=[DataRequired()], default="noturno")
     quantidade_alunos = IntegerField(
         "Quantidade de Alunos (opcional)",
         validators=[Optional(), NumberRange(min=1, max=500)],
@@ -207,6 +228,19 @@ class TimetableForm(FlaskForm):
     submit = SubmitField("Alocar")
 
 
+class ProfessorAssignmentForm(FlaskForm):
+    professor_id = SelectField(
+        "Professor",
+        coerce=int,
+        validators=[DataRequired()],
+    )
+    submit = SubmitField("Salvar Professor")
+
+
+class BulkProfessorAssignmentForm(FlaskForm):
+    submit = SubmitField("Salvar Alocacao em Lote")
+
+
 class DeleteForm(FlaskForm):
     submit = SubmitField("Deletar")
 
@@ -229,6 +263,16 @@ class MatriculaForm(FlaskForm):
         validators=[DataRequired()],
     )
     submit = SubmitField("Alocar")
+
+
+class TurmaMatriculaForm(FlaskForm):
+    aluno_id = SelectField(
+        "Aluno",
+        coerce=int,
+        validators=[DataRequired()],
+        render_kw={"data-searchable": "true"},
+    )
+    submit = SubmitField("Matricular Aluno")
 
 
 class AttendanceForm(FlaskForm):

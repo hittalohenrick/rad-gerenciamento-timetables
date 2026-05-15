@@ -99,6 +99,7 @@ class Turma(db.Model):
     codigo = db.Column(db.String(30), nullable=False)
     semestre_letivo = db.Column(db.String(20), nullable=False)
     periodo = db.Column(db.Integer, nullable=False)
+    turno = db.Column(db.String(20), nullable=False, default="noturno")
     quantidade_alunos = db.Column(db.Integer, nullable=True)
     ativa = db.Column(db.Boolean, nullable=False, default=True)
 
@@ -119,7 +120,7 @@ class Timetable(db.Model):
     hora_inicio = db.Column(db.Time, nullable=False)
     hora_fim = db.Column(db.Time, nullable=False)
     sala_id = db.Column(db.Integer, db.ForeignKey('sala.id'), nullable=False)
-    professor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    professor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     disciplina_id = db.Column(db.Integer, db.ForeignKey('disciplina.id'), nullable=False)
     turma_id = db.Column(db.Integer, db.ForeignKey("turma.id"), nullable=False)
 

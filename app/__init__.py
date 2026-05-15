@@ -72,3 +72,54 @@ def _ensure_runtime_schema():
                 text("UPDATE curso SET quantidade_periodos = 8 WHERE quantidade_periodos IS NULL")
             )
             db.session.commit()
+
+    if "turma" in tables:
+        turma_columns = {column["name"] for column in inspector.get_columns("turma")}
+        if "turno" not in turma_columns:
+            db.session.execute(text("ALTER TABLE turma ADD COLUMN turno VARCHAR(20) DEFAULT 'noturno'"))
+            db.session.execute(text("UPDATE turma SET turno = 'noturno' WHERE turno IS NULL"))
+            db.session.commit()
+
+    if "timetable" in tables:
+        timetable_columns_info = {column["name"]: column for column in inspector.get_columns("timetable")}
+        professor_column = timetable_columns_info.get("professor_id")
+        if professor_column and professor_column.get("nullable") is False:
+            db.session.execute(text("PRAGMA foreign_keys=OFF"))
+            db.session.execute(
+                text(
+                    """
+                    CREATE TABLE timetable_new (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        dia VARCHAR(20) NOT NULL,
+                        hora_inicio TIME NOT NULL,
+                        hora_fim TIME NOT NULL,
+                        sala_id INTEGER NOT NULL,
+                        professor_id INTEGER,
+                        disciplina_id INTEGER NOT NULL,
+                        turma_id INTEGER NOT NULL,
+                        FOREIGN KEY(sala_id) REFERENCES sala (id),
+                        FOREIGN KEY(professor_id) REFERENCES user (id),
+                        FOREIGN KEY(disciplina_id) REFERENCES disciplina (id),
+                        FOREIGN KEY(turma_id) REFERENCES turma (id),
+                        CONSTRAINT unique_dia_horario_sala UNIQUE (dia, hora_inicio, hora_fim, sala_id),
+                        CONSTRAINT unique_dia_horario_professor UNIQUE (dia, hora_inicio, hora_fim, professor_id),
+                        CONSTRAINT unique_dia_horario_turma UNIQUE (dia, hora_inicio, hora_fim, turma_id)
+                    )
+                    """
+                )
+            )
+            db.session.execute(
+                text(
+                    """
+                    INSERT INTO timetable_new (
+                        id, dia, hora_inicio, hora_fim, sala_id, professor_id, disciplina_id, turma_id
+                    )
+                    SELECT id, dia, hora_inicio, hora_fim, sala_id, professor_id, disciplina_id, turma_id
+                    FROM timetable
+                    """
+                )
+            )
+            db.session.execute(text("DROP TABLE timetable"))
+            db.session.execute(text("ALTER TABLE timetable_new RENAME TO timetable"))
+            db.session.execute(text("PRAGMA foreign_keys=ON"))
+            db.session.commit()

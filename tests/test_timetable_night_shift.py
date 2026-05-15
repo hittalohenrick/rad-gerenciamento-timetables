@@ -1,7 +1,7 @@
 from datetime import time
 
 from app import db
-from app.forms import NIGHT_SHIFT_ID, SHIFT_SLOT_VALUES, get_shift_bounds
+from app.forms import NIGHT_SHIFT_ID, get_shift_bounds
 from app.models import (
     Curso,
     Disciplina,
@@ -55,7 +55,7 @@ def test_new_timetable_applies_selected_shift(client, login, user_factory):
     db.session.commit()
 
     login("admin", "Admin1234")
-    selected_slot = SHIFT_SLOT_VALUES[0]
+    selected_slot = NIGHT_SHIFT_ID
     start_time, end_time = get_shift_bounds(selected_slot)
 
     response = client.post(
@@ -86,6 +86,16 @@ def test_new_timetable_blocks_manual_post_with_busy_room(client, login, user_fac
     professor_a = user_factory("prof_a", role="professor", password="123456", email="prof_a@login.local")
     professor_b = user_factory("prof_b", role="professor", password="123456", email="prof_b@login.local")
     sala_a, _, disciplina_a, _, turma = _setup_catalog()
+    turma_2 = Turma(
+        curso_id=turma.curso_id,
+        codigo="ADS-3N-B",
+        semestre_letivo=turma.semestre_letivo,
+        periodo=turma.periodo,
+        turno=turma.turno,
+        quantidade_alunos=20,
+    )
+    db.session.add(turma_2)
+    db.session.commit()
     slot_start, slot_end = get_shift_bounds(NIGHT_SHIFT_ID)
     professor_a.disciplinas_aptas = [disciplina_a]
     professor_b.disciplinas_aptas = [disciplina_a]
@@ -111,7 +121,7 @@ def test_new_timetable_blocks_manual_post_with_busy_room(client, login, user_fac
         data={
             "dia": "Segunda",
             "horario_id": NIGHT_SHIFT_ID,
-            "turma_id": str(turma.id),
+            "turma_id": str(turma_2.id),
             "sala_id": str(sala_a.id),
             "professor_id": str(professor_b.id),
             "disciplina_id": str(disciplina_a.id),
@@ -138,7 +148,7 @@ def test_new_timetable_blocks_when_professor_has_no_aptitude(client, login, user
         "/timetable/new",
         data={
             "dia": "Quarta",
-            "horario_id": SHIFT_SLOT_VALUES[1],
+            "horario_id": NIGHT_SHIFT_ID,
             "turma_id": str(turma.id),
             "sala_id": str(sala_a.id),
             "professor_id": str(professor.id),
