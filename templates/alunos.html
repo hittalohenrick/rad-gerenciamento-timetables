@@ -17,6 +17,7 @@
           <tr>
             <th>Nome</th>
             <th>Matrícula</th>
+            <th>Curso</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -25,16 +26,17 @@
           <tr>
             <td>{{ aluno.nome }}</td>
             <td>{{ aluno.matricula }}</td>
+            <td>{{ aluno.curso.nome if aluno.curso else '-' }}</td>
             <td class="actions-cell">
               <a href="{{ url_for('main.edit_aluno', id=aluno.id) }}" class="btn btn-sm btn-edit">Editar</a>
               <form
                 method="POST"
                 action="{{ url_for('main.delete_aluno', id=aluno.id) }}"
                 class="d-inline"
-                onsubmit="return confirm('Tem certeza que deseja deletar este aluno?');"
+                onsubmit="return confirm('Tem certeza que deseja inativar este aluno?');"
               >
                 {{ delete_form.hidden_tag() }}
-                <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+                <button type="submit" class="btn btn-sm btn-danger">Inativar</button>
               </form>
             </td>
           </tr>

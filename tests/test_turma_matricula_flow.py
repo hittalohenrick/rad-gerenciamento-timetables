@@ -1,5 +1,7 @@
 from app import db
-from app.models import Aluno, Curso, Matricula, Turma
+from datetime import date, time
+
+from app.models import Aluno, Curso, Disciplina, Matricula, Presenca, Sala, Timetable, Turma
 
 
 def _setup_turma(quantidade_alunos=2):
@@ -20,7 +22,7 @@ def _setup_turma(quantidade_alunos=2):
 def test_turma_alunos_allows_enrollment_from_turma_screen(client, login, user_factory):
     user_factory("admin", role="admin", password="Admin1234", email="admin@example.com")
     turma = _setup_turma(quantidade_alunos=2)
-    aluno = Aluno(nome="Aluno Turma", matricula="T001")
+    aluno = Aluno(nome="Aluno Turma", matricula="T001", curso_id=turma.curso_id)
     db.session.add(aluno)
     db.session.commit()
 
@@ -45,8 +47,8 @@ def test_turma_alunos_blocks_when_capacity_is_reached(client, login, user_factor
     user_factory("admin", role="admin", password="Admin1234", email="admin@example.com")
     turma = _setup_turma(quantidade_alunos=1)
 
-    aluno_1 = Aluno(nome="Aluno 1", matricula="C001")
-    aluno_2 = Aluno(nome="Aluno 2", matricula="C002")
+    aluno_1 = Aluno(nome="Aluno 1", matricula="C001", curso_id=turma.curso_id)
+    aluno_2 = Aluno(nome="Aluno 2", matricula="C002", curso_id=turma.curso_id)
     db.session.add_all([aluno_1, aluno_2])
     db.session.flush()
     db.session.add(Matricula(aluno_id=aluno_1.id, turma_id=turma.id))
@@ -69,7 +71,7 @@ def test_turma_alunos_allows_delete_enrollment(client, login, user_factory):
     user_factory("admin", role="admin", password="Admin1234", email="admin@example.com")
     turma = _setup_turma(quantidade_alunos=2)
 
-    aluno = Aluno(nome="Aluno Remover", matricula="R001")
+    aluno = Aluno(nome="Aluno Remover", matricula="R001", curso_id=turma.curso_id)
     db.session.add(aluno)
     db.session.flush()
     matricula = Matricula(aluno_id=aluno.id, turma_id=turma.id)
@@ -87,6 +89,55 @@ def test_turma_alunos_allows_delete_enrollment(client, login, user_factory):
     assert response_post.status_code == 200
     assert b"Alocacao removida com sucesso." in response_post.data
     assert db.session.get(Matricula, matricula.id) is None
+
+
+def test_turma_alunos_allows_delete_enrollment_with_attendance_history(client, login, user_factory):
+    user_factory("admin", role="admin", password="Admin1234", email="admin@example.com")
+    turma = _setup_turma(quantidade_alunos=2)
+
+    aluno = Aluno(nome="Aluno Historico", matricula="R002", curso_id=turma.curso_id)
+    sala = Sala(nome="Sala Historico", capacidade=40)
+    disciplina = Disciplina(nome="Teste Historico", codigo="HIST001")
+    db.session.add_all([aluno, sala, disciplina])
+    db.session.flush()
+
+    matricula = Matricula(aluno_id=aluno.id, turma_id=turma.id)
+    db.session.add(matricula)
+    db.session.flush()
+
+    timetable = Timetable(
+        dia="Segunda",
+        hora_inicio=time(18, 0),
+        hora_fim=time(19, 30),
+        sala_id=sala.id,
+        professor_id=None,
+        disciplina_id=disciplina.id,
+        turma_id=turma.id,
+    )
+    db.session.add(timetable)
+    db.session.flush()
+
+    presenca = Presenca(
+        data=date.today(),
+        presente=True,
+        aluno_id=aluno.id,
+        timetable_id=timetable.id,
+    )
+    db.session.add(presenca)
+    db.session.commit()
+
+    login("admin", "Admin1234")
+
+    response_post = client.post(
+        f"/turma/{turma.id}/matricula/{matricula.id}/delete",
+        data={"submit": "1"},
+        follow_redirects=True,
+    )
+
+    assert response_post.status_code == 200
+    assert b"Alocacao removida com sucesso." in response_post.data
+    assert db.session.get(Matricula, matricula.id) is None
+    assert db.session.get(Presenca, presenca.id) is not None
 
 
 def test_matricula_blocks_second_turma_in_same_semestre(client, login, user_factory):
@@ -109,7 +160,7 @@ def test_matricula_blocks_second_turma_in_same_semestre(client, login, user_fact
         turno="noturno",
         quantidade_alunos=40,
     )
-    aluno = Aluno(nome="Aluno Semestre", matricula="SEM001")
+    aluno = Aluno(nome="Aluno Semestre", matricula="SEM001", curso_id=curso.id)
     db.session.add_all([curso, turma_a, turma_b, aluno])
     db.session.commit()
 
@@ -153,8 +204,8 @@ def test_turma_alunos_hides_students_already_enrolled_in_same_semestre(client, l
         turno="noturno",
         quantidade_alunos=40,
     )
-    aluno_bloqueado = Aluno(nome="Aluno Bloqueado", matricula="BLQ001")
-    aluno_livre = Aluno(nome="Aluno Livre", matricula="LVR001")
+    aluno_bloqueado = Aluno(nome="Aluno Bloqueado", matricula="BLQ001", curso_id=curso.id)
+    aluno_livre = Aluno(nome="Aluno Livre", matricula="LVR001", curso_id=curso.id)
     db.session.add_all([curso, turma_a, turma_b, aluno_bloqueado, aluno_livre])
     db.session.flush()
     db.session.add(Matricula(aluno_id=aluno_bloqueado.id, turma_id=turma_a.id))
@@ -166,3 +217,35 @@ def test_turma_alunos_hides_students_already_enrolled_in_same_semestre(client, l
     assert page.status_code == 200
     assert b"Aluno Bloqueado" not in page.data
     assert b"Aluno Livre" in page.data
+
+
+def test_matricula_blocks_aluno_de_outro_curso(client, login, user_factory):
+    user_factory("admin", role="admin", password="Admin1234", email="admin@example.com")
+
+    curso_es = Curso(nome="Engenharia de Software", codigo="ES", ativo=True, quantidade_periodos=10)
+    curso_cc = Curso(nome="Ciencia da Computacao", codigo="CC", ativo=True, quantidade_periodos=8)
+    turma_cc = Turma(
+        curso=curso_cc,
+        codigo="CC-1A",
+        semestre_letivo="2026.1",
+        periodo=1,
+        turno="noturno",
+        quantidade_alunos=40,
+    )
+    db.session.add_all([curso_es, curso_cc])
+    db.session.flush()
+    aluno_es = Aluno(nome="Aluno ES", matricula="ES001", curso_id=curso_es.id)
+    db.session.add_all([turma_cc, aluno_es])
+    db.session.commit()
+
+    login("admin", "Admin1234")
+
+    response = client.post(
+        "/matricula/new",
+        data={"aluno_id": str(aluno_es.id), "turma_id": str(turma_cc.id)},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"aluno pertence a outro curso" in response.data
+    assert Matricula.query.filter_by(aluno_id=aluno_es.id).count() == 0

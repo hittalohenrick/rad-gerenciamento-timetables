@@ -5,6 +5,7 @@ from wtforms import IntegerField, PasswordField, SelectField, SelectMultipleFiel
 from wtforms.validators import (
     DataRequired,
     EqualTo,
+    InputRequired,
     Length,
     NumberRange,
     Optional,
@@ -12,6 +13,8 @@ from wtforms.validators import (
 )
 
 PASSWORD_MIN_LENGTH = 6
+FIXED_SALA_CAPACITY = 50
+MAX_TURMA_CAPACITY = 50
 WEEKDAY_CHOICES = [
     ("Segunda", "Segunda"),
     ("Terca", "Terca"),
@@ -42,6 +45,15 @@ TURNO_CHOICES = [
     ("noturno", "Noturno"),
 ]
 TURNOS_VALIDOS = [value for value, _ in TURNO_CHOICES]
+PROFESSOR_WORKLOAD_CHOICES = [
+    ("matutino_vespertino", "Matutino + Vespertino"),
+    ("vespertino_noturno", "Vespertino + Noturno"),
+]
+PROFESSOR_WORKLOAD_TURNOS = {
+    "matutino_vespertino": ["matutino", "vespertino"],
+    "vespertino_noturno": ["vespertino", "noturno"],
+}
+PROFESSOR_DEFAULT_WORKLOAD = "vespertino_noturno"
 SLOT_IDS_BY_TURNO = {
     "matutino": ["manha_0700_0830", "manha_0900_1030"],
     "vespertino": ["tarde_1300_1430", "tarde_1500_1630"],
@@ -70,6 +82,11 @@ def get_shift_label(slot_id):
 def get_turno_label(turno):
     labels_by_turno = dict(TURNO_CHOICES)
     return labels_by_turno.get(turno, "Nao definido")
+
+
+def get_professor_workload_label(profile_key):
+    labels_by_profile = dict(PROFESSOR_WORKLOAD_CHOICES)
+    return labels_by_profile.get(profile_key, "Nao definido")
 
 
 def allowed_slot_ids_for_turno(turno):
@@ -122,6 +139,12 @@ class ProfessorForm(FlaskForm):
         validators=[DataRequired()],
         render_kw={"data-searchable": "true", "size": "8"},
     )
+    jornada_turnos = SelectField(
+        "Jornada de Turnos",
+        choices=PROFESSOR_WORKLOAD_CHOICES,
+        validators=[DataRequired()],
+        default=PROFESSOR_DEFAULT_WORKLOAD,
+    )
     submit = SubmitField("Salvar")
 
 
@@ -143,12 +166,17 @@ class ProfessorEditForm(FlaskForm):
         validators=[DataRequired()],
         render_kw={"data-searchable": "true", "size": "8"},
     )
+    jornada_turnos = SelectField(
+        "Jornada de Turnos",
+        choices=PROFESSOR_WORKLOAD_CHOICES,
+        validators=[DataRequired()],
+        default=PROFESSOR_DEFAULT_WORKLOAD,
+    )
     submit = SubmitField("Salvar")
 
 
 class SalaForm(FlaskForm):
     nome = StringField("Nome da Sala", validators=[DataRequired(), Length(min=2, max=100)])
-    capacidade = IntegerField("Capacidade", validators=[DataRequired(), NumberRange(min=1, max=500)])
     submit = SubmitField("Salvar")
 
 
@@ -187,8 +215,15 @@ class TurmaForm(FlaskForm):
     periodo = IntegerField("Periodo", validators=[DataRequired(), NumberRange(min=1, max=16)])
     turno = SelectField("Turno", choices=TURNO_CHOICES, validators=[DataRequired()], default="noturno")
     quantidade_alunos = IntegerField(
-        "Quantidade de Alunos (opcional)",
-        validators=[Optional(), NumberRange(min=1, max=500)],
+        "Quantidade de Alunos (0 a 50)",
+        validators=[
+            InputRequired(),
+            NumberRange(
+                min=0,
+                max=MAX_TURMA_CAPACITY,
+                message=f"A capacidade da turma deve estar entre 0 e {MAX_TURMA_CAPACITY} alunos.",
+            ),
+        ],
     )
     submit = SubmitField("Salvar")
 
@@ -248,6 +283,7 @@ class DeleteForm(FlaskForm):
 class AlunoForm(FlaskForm):
     nome = StringField("Nome", validators=[DataRequired(), Length(min=2, max=120)])
     matricula = StringField("Matricula", validators=[DataRequired(), Length(min=2, max=30)])
+    curso_id = SelectField("Curso", coerce=int, validators=[DataRequired()])
     submit = SubmitField("Salvar")
 
 

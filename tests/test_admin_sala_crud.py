@@ -16,7 +16,7 @@ def test_admin_full_sala_crud_flow(client, login, user_factory):
 
     sala = Sala.query.filter_by(nome="Lab 01").first()
     assert sala is not None
-    assert sala.capacidade == 30
+    assert sala.capacidade == 50
 
     update_response = client.post(
         f"/sala/edit/{sala.id}",
@@ -29,7 +29,7 @@ def test_admin_full_sala_crud_flow(client, login, user_factory):
     updated_sala = db.session.get(Sala, sala.id)
     assert updated_sala is not None
     assert updated_sala.nome == "Lab 02"
-    assert updated_sala.capacidade == 40
+    assert updated_sala.capacidade == 50
 
     delete_response = client.post(
         f"/sala/delete/{sala.id}",

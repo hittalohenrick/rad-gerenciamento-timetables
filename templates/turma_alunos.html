@@ -23,9 +23,9 @@
       <div>
         <h2 class="h4 mb-1">Matricular Aluno</h2>
         {% if turma.quantidade_alunos %}
-        <p class="page-lead">Capacidade prevista: {{ turma.quantidade_alunos }} aluno(s){% if vagas_restantes is not none %} | Vagas restantes: {{ vagas_restantes }}{% endif %}</p>
+        <p class="page-lead">Capacidade prevista: {{ turma.quantidade_alunos }} aluno(s){% if vagas_restantes is not none %} | Vagas restantes: {{ vagas_restantes }}{% endif %} | Somente alunos do curso {{ turma.curso.nome if turma.curso else '-' }}</p>
         {% else %}
-        <p class="page-lead">Sem limite de capacidade definido para esta turma.</p>
+        <p class="page-lead">Sem limite de capacidade definido para esta turma. Somente alunos do curso {{ turma.curso.nome if turma.curso else '-' }}.</p>
         {% endif %}
       </div>
     </div>

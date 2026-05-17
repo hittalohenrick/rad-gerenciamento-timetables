@@ -80,6 +80,57 @@ def _ensure_runtime_schema():
             db.session.execute(text("UPDATE turma SET turno = 'noturno' WHERE turno IS NULL"))
             db.session.commit()
 
+    if "aluno" in tables:
+        aluno_columns = {column["name"] for column in inspector.get_columns("aluno")}
+        if "ativo" not in aluno_columns:
+            db.session.execute(text("ALTER TABLE aluno ADD COLUMN ativo BOOLEAN DEFAULT 1"))
+            db.session.execute(text("UPDATE aluno SET ativo = 1 WHERE ativo IS NULL"))
+            db.session.commit()
+        if "curso_id" not in aluno_columns:
+            db.session.execute(text("ALTER TABLE aluno ADD COLUMN curso_id INTEGER"))
+            db.session.execute(
+                text(
+                    """
+                    UPDATE aluno
+                    SET curso_id = (
+                        SELECT t.curso_id
+                        FROM matricula m
+                        JOIN turma t ON t.id = m.turma_id
+                        WHERE m.aluno_id = aluno.id
+                        ORDER BY m.id ASC
+                        LIMIT 1
+                    )
+                    WHERE curso_id IS NULL
+                    """
+                )
+            )
+            db.session.execute(
+                text(
+                    """
+                    UPDATE aluno
+                    SET curso_id = (
+                        SELECT c.id
+                        FROM curso c
+                        ORDER BY c.id ASC
+                        LIMIT 1
+                    )
+                    WHERE curso_id IS NULL
+                    """
+                )
+            )
+            db.session.commit()
+
+    if "user" in tables:
+        user_columns = {column["name"] for column in inspector.get_columns("user")}
+        if "jornada_turnos" not in user_columns:
+            db.session.execute(
+                text("ALTER TABLE user ADD COLUMN jornada_turnos VARCHAR(40) DEFAULT 'vespertino_noturno'")
+            )
+            db.session.execute(
+                text("UPDATE user SET jornada_turnos = 'vespertino_noturno' WHERE jornada_turnos IS NULL")
+            )
+            db.session.commit()
+
     if "timetable" in tables:
         timetable_columns_info = {column["name"]: column for column in inspector.get_columns("timetable")}
         professor_column = timetable_columns_info.get("professor_id")

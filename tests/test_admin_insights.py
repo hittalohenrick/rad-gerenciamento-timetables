@@ -101,9 +101,9 @@ def test_admin_dashboard_hides_insights_panel(client, login, user_factory):
     db.session.add_all([t1, t2, t3, t4])
     db.session.commit()
 
-    aluno_1 = Aluno(nome="Aluno 1", matricula="A001")
-    aluno_2 = Aluno(nome="Aluno 2", matricula="A002")
-    aluno_3 = Aluno(nome="Aluno 3", matricula="A003")
+    aluno_1 = Aluno(nome="Aluno 1", matricula="A001", curso_id=turma_a.curso_id)
+    aluno_2 = Aluno(nome="Aluno 2", matricula="A002", curso_id=turma_a.curso_id)
+    aluno_3 = Aluno(nome="Aluno 3", matricula="A003", curso_id=turma_b.curso_id)
     db.session.add_all([aluno_1, aluno_2, aluno_3])
     db.session.commit()
 
@@ -123,6 +123,11 @@ def test_admin_dashboard_hides_insights_panel(client, login, user_factory):
     assert response.status_code == 200
     assert b"Painel Administrativo" in response.data
     assert b"Insights para Decisao" not in response.data
+    assert b"Capacidade de Novas Turmas" in response.data
+    assert b"Capacidade Docente" in response.data
+    assert b"Matutino" in response.data
+    assert b"Vespertino" in response.data
+    assert b"Noturno" in response.data
 
 
 def test_admin_insights_page_is_available(client, login, user_factory):
@@ -136,3 +141,7 @@ def test_admin_insights_page_is_available(client, login, user_factory):
     assert b"Voltar ao Dashboard" in response.data
     assert b"Ocupacao por Sala" in response.data
     assert b"Carga de Turmas por Professor" in response.data
+    assert b"Capacidade por Turno" in response.data
+    assert b"Matutino" in response.data
+    assert b"Vespertino" in response.data
+    assert b"Noturno" in response.data

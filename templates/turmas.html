@@ -7,8 +7,18 @@
       <p class="eyebrow">Planejamento Semestral</p>
       <h1>Turmas de Oferta</h1>
     </div>
-    <a href="{{ url_for('main.new_turma') }}" class="btn btn-primary">Nova Turma</a>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('main.turmas') }}" class="btn {{ 'btn-primary' if not filter_sem_quadro else 'btn-outline-secondary' }}">Todas</a>
+      <a href="{{ url_for('main.turmas', f='sem_quadro') }}" class="btn {{ 'btn-warning' if filter_sem_quadro else 'btn-outline-secondary' }}">Sem Quadro</a>
+      <a href="{{ url_for('main.new_turma') }}" class="btn btn-primary">Nova Turma</a>
+    </div>
   </div>
+
+  {% if filter_sem_quadro %}
+  <div class="alert alert-warning">
+    Exibindo somente turmas sem quadro gerado. Use <strong>Quadro</strong> para ajustar manualmente ou <strong>Gerar Quadro</strong> para montar automaticamente.
+  </div>
+  {% endif %}
 
   <div class="surface table-shell">
     <div class="table-responsive">
@@ -22,12 +32,14 @@
             <th>Turno</th>
             <th>Qtd. Alunos</th>
             <th>Matriculados</th>
+            <th>Quadro</th>
             <th>Status</th>
             <th>Acoes</th>
           </tr>
         </thead>
         <tbody>
           {% for turma in turmas %}
+          {% set total_alocacoes = alocacoes_por_turma.get(turma.id, 0) %}
           <tr>
             <td>{{ turma.curso.nome if turma.curso else 'Curso removido' }}</td>
             <td>{{ turma.codigo }}</td>
@@ -36,10 +48,18 @@
             <td>{{ turno_label_for(turma.turno) }}</td>
             <td>{{ turma.quantidade_alunos if turma.quantidade_alunos else '-' }}</td>
             <td>{{ matriculas_por_turma.get(turma.id, 0) }}</td>
+            <td>
+              {% if total_alocacoes == 0 %}
+              <span class="badge bg-warning text-dark">Sem Quadro</span>
+              {% else %}
+              <span class="badge bg-primary">Com Quadro</span>
+              {% endif %}
+            </td>
             <td>{{ 'Ativa' if turma.ativa else 'Inativa' }}</td>
             <td class="actions-cell">
               <a href="{{ url_for('main.turma_quadro', id=turma.id) }}" class="btn btn-sm btn-primary">Quadro</a>
               <a href="{{ url_for('main.turma_alunos', id=turma.id) }}" class="btn btn-sm btn-outline-secondary">Alunos</a>
+              {% if total_alocacoes == 0 %}
               <form
                 method="POST"
                 action="{{ url_for('main.gerar_turma_quadro', id=turma.id) }}"
@@ -49,6 +69,7 @@
                 {{ delete_form.hidden_tag() }}
                 <button type="submit" class="btn btn-sm btn-secondary">Gerar Quadro</button>
               </form>
+              {% endif %}
               <a href="{{ url_for('main.edit_turma', id=turma.id) }}" class="btn btn-sm btn-edit">Editar</a>
               <form
                 method="POST"
@@ -62,6 +83,11 @@
             </td>
           </tr>
           {% endfor %}
+          {% if not turmas %}
+          <tr>
+            <td colspan="10" class="text-center text-muted">Nenhuma turma encontrada para este filtro.</td>
+          </tr>
+          {% endif %}
         </tbody>
       </table>
     </div>

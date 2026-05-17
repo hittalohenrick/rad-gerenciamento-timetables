@@ -28,7 +28,8 @@
     {{ form.hidden_tag() }}
     {{ render_field(form.professor_id) }}
     <div class="form-text mb-3">
-      A lista mostra somente professores aptos para a disciplina e disponiveis neste dia/horario.
+      A lista mostra somente professores aptos para a disciplina, com jornada valida e com carga disponivel
+      (max. 10 slots por turno e 20 por semana).
     </div>
     {{ form.submit(class="btn btn-primary") }}
   </form>

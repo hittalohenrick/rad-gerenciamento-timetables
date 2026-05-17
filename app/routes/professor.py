@@ -224,6 +224,20 @@ def professor_attendance(timetable_id):
             selected_date = recommended_date
             form.chamada_data.data = selected_date.strftime("%d/%m/%Y")
         else:
+            presencas_atuais = Presenca.query.filter_by(
+                timetable_id=timetable.id,
+                data=selected_date,
+            ).all()
+            if presencas_atuais:
+                flash("Esta chamada ja foi registrada e nao pode ser editada.", "warning")
+                return redirect(
+                    url_for(
+                        "main.professor_attendance",
+                        timetable_id=timetable.id,
+                        data=selected_date.isoformat(),
+                    )
+                )
+
             selected_ids = set()
             for raw_id in request.form.getlist("presentes"):
                 if raw_id.isdigit():
@@ -232,24 +246,16 @@ def professor_attendance(timetable_id):
             allowed_ids = {matricula.aluno_id for matricula in matriculas}
             selected_ids = selected_ids.intersection(allowed_ids)
 
-            presencas_atuais = Presenca.query.filter_by(timetable_id=timetable.id, data=selected_date).all()
-            presencas_por_aluno = {presenca.aluno_id: presenca for presenca in presencas_atuais}
-
             for matricula in matriculas:
                 presente = matricula.aluno_id in selected_ids
-                presenca = presencas_por_aluno.get(matricula.aluno_id)
-
-                if presenca is None:
-                    db.session.add(
-                        Presenca(
-                            data=selected_date,
-                            presente=presente,
-                            aluno_id=matricula.aluno_id,
-                            timetable_id=timetable.id,
-                        )
+                db.session.add(
+                    Presenca(
+                        data=selected_date,
+                        presente=presente,
+                        aluno_id=matricula.aluno_id,
+                        timetable_id=timetable.id,
                     )
-                else:
-                    presenca.presente = presente
+                )
 
             try:
                 db.session.commit()
@@ -278,6 +284,7 @@ def professor_attendance(timetable_id):
     form.chamada_data.data = selected_date.strftime("%d/%m/%Y")
 
     presencas_dia = Presenca.query.filter_by(timetable_id=timetable.id, data=selected_date).all()
+    attendance_locked = len(presencas_dia) > 0
     present_ids = {presenca.aluno_id for presenca in presencas_dia if presenca.presente}
 
     total_alunos = len(matriculas)
@@ -297,6 +304,7 @@ def professor_attendance(timetable_id):
         total_faltas=total_faltas,
         percentual_presenca=percentual_presenca,
         attendance_history=attendance_history,
+        attendance_locked=attendance_locked,
         selected_date=selected_date,
         expected_day_label=WEEKDAY_TO_LABEL.get(timetable_weekday(timetable.dia), timetable.dia),
     )

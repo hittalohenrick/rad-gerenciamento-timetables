@@ -15,6 +15,13 @@
     {{ form.hidden_tag() }}
     {{ render_field(form.username) }}
 
+    {% if form.jornada_turnos is defined %}
+    {{ render_field(form.jornada_turnos) }}
+    <div class="form-text mb-3">
+      Cada professor atua em no maximo dois turnos contiguos, com limite de 10 slots por turno e 20 por semana.
+    </div>
+    {% endif %}
+
     {% if form.password is defined %}
     {{ render_field(form.password) }}
     {% endif %}

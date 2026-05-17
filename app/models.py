@@ -27,6 +27,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
     role = db.Column(db.String(20), default='professor')  # 'admin' or 'professor'
+    jornada_turnos = db.Column(db.String(40), nullable=False, default="vespertino_noturno")
     disciplinas_aptas = db.relationship(
         "Disciplina",
         secondary=professor_disciplina,
@@ -140,7 +141,11 @@ class Aluno(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(120), nullable=False)
     matricula = db.Column(db.String(30), unique=True, nullable=False)
+    curso_id = db.Column(db.Integer, db.ForeignKey("curso.id"), nullable=False)
+    ativo = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+
+    curso = db.relationship("Curso", backref=db.backref("alunos", lazy="select"))
 
 
 class Matricula(db.Model):

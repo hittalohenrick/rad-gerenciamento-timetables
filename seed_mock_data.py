@@ -337,11 +337,15 @@ def add_mock_timetables(rng: random.Random, target_new: int):
 
 
 def add_mock_alunos(target_new: int):
+    cursos = Curso.query.order_by(Curso.nome.asc()).all()
+    if not cursos:
+        return 0
     existing_matriculas = {matricula for (matricula,) in db.session.query(Aluno.matricula).all()}
     matriculas = pick_unique_matriculas(existing_matriculas, target_new)
 
     for idx, matricula in enumerate(matriculas, start=1):
-        db.session.add(Aluno(nome=f"Aluno Mock {idx:03d}", matricula=matricula))
+        curso = cursos[(idx - 1) % len(cursos)]
+        db.session.add(Aluno(nome=f"Aluno Mock {idx:03d}", matricula=matricula, curso_id=curso.id))
 
     return target_new
 

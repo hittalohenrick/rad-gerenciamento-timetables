@@ -41,6 +41,11 @@
         {{ form.hidden_tag() }}
         {{ render_field(form.chamada_data) }}
         <p class="form-text">Use datas no mesmo dia da turma ({{ expected_day_label }}). Datas futuras nao sao permitidas.</p>
+        {% if attendance_locked %}
+        <div class="alert alert-warning">
+          Esta chamada ja foi registrada e esta bloqueada para edicao. Para lancar nova chamada, informe outra data.
+        </div>
+        {% endif %}
 
         <div class="action-row attendance-toolbar">
           <input

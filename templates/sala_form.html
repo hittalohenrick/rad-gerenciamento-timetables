@@ -14,7 +14,11 @@
   <form method="POST" novalidate>
     {{ form.hidden_tag() }}
     {{ render_field(form.nome) }}
-    {{ render_field(form.capacidade) }}
+    <div class="mb-3">
+      <label class="form-label">Capacidade</label>
+      <input type="text" class="form-control" value="50 alunos (fixo)" disabled />
+      <div class="form-text">Todas as salas usam capacidade fixa de 50 alunos.</div>
+    </div>
     {{ form.submit(class="btn btn-primary") }}
   </form>
 </section>

@@ -41,7 +41,6 @@
       <button type="submit" class="btn btn-outline-danger">Regenerar Quadro</button>
     </form>
     {% endif %}
-    <a href="{{ url_for('main.new_timetable') }}" class="btn btn-outline-secondary">Adicionar Slot Manual</a>
     {% if completeness.is_complete and pending_teacher_count > 0 %}
     <a href="{{ url_for('main.alocar_professores_turma_lote', id=turma.id) }}" class="btn btn-success">Alocar Professores em Lote</a>
     {% endif %}
@@ -94,10 +93,6 @@
               <div class="small {% if cell.timetable.professor %}text-muted{% else %}text-danger{% endif %}">
                 Professor: {{ cell.timetable.professor.username if cell.timetable.professor else 'Pendente' }}
               </div>
-              <a href="{{ url_for('main.alocar_professor_timetable', id=cell.timetable.id) }}" class="btn btn-sm btn-edit mt-2">
-                {{ 'Trocar Professor' if cell.timetable.professor else 'Alocar Professor' }}
-              </a>
-              <a href="{{ url_for('main.edit_timetable', id=cell.timetable.id) }}" class="btn btn-sm btn-outline-secondary mt-2">Editar Slot</a>
               {% else %}
               <span class="text-muted">-</span>
               {% endif %}
@@ -122,7 +117,6 @@
             <th>Disciplina</th>
             <th>Sala</th>
             <th>Professor</th>
-            <th>Acoes</th>
           </tr>
         </thead>
         <tbody>
@@ -133,10 +127,6 @@
             <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
             <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
             <td>{{ t.professor.username if t.professor else 'Pendente' }}</td>
-            <td class="actions-cell">
-              <a href="{{ url_for('main.alocar_professor_timetable', id=t.id) }}" class="btn btn-sm btn-edit">Alocar Professor</a>
-              <a href="{{ url_for('main.edit_timetable', id=t.id) }}" class="btn btn-sm btn-outline-secondary">Editar Slot</a>
-            </td>
           </tr>
           {% endfor %}
         </tbody>

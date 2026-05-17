@@ -8,11 +8,6 @@
       <h1>Painel Administrativo</h1>
       <p class="page-lead">Controle o fluxo completo: estrutura, oferta, horarios, docentes e matriculas.</p>
     </div>
-    <div class="action-row mb-0">
-      <a href="{{ url_for('main.new_turma') }}" class="btn btn-primary">Nova Turma</a>
-      <a href="{{ url_for('main.new_timetable') }}" class="btn btn-success">Nova Alocacao</a>
-      <a href="{{ url_for('main.admin_insights') }}" class="btn btn-outline-secondary">Ver Insights</a>
-    </div>
   </div>
 
   <div class="dashboard-stats dashboard-stats-admin mb-4">
@@ -24,10 +19,12 @@
       <h3>{{ operation_panel.horarios_sem_professor|length }}</h3>
       <p>Horarios Sem Professor</p>
     </div>
+    <a href="{{ url_for('main.turmas', f='sem_quadro') }}" class="text-decoration-none">
     <div class="stat-card">
       <h3>{{ operation_panel.turmas_sem_quadro|length }}</h3>
       <p>Turmas Sem Quadro</p>
     </div>
+    </a>
     <div class="stat-card">
       <h3>{{ operation_panel.turmas_sem_alunos|length }}</h3>
       <p>Turmas Sem Alunos</p>
@@ -35,6 +32,87 @@
     <div class="stat-card">
       <h3>{{ matriculas_count }}</h3>
       <p>Matriculas Ativas</p>
+    </div>
+  </div>
+
+  <div class="surface section-shell mb-4">
+    <div class="section-head">
+      <h2 class="section-title">Capacidade de Novas Turmas</h2>
+      <p class="section-subtitle">
+        Cada turma nova consome {{ turno_capacity.disciplinas_por_turma }} tempos semanais no proprio turno.
+        Total disponivel: {{ turno_capacity.turmas_possiveis_disponivel_total }} turma(s).
+      </p>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Turno</th>
+            <th>Slots Livres</th>
+            <th>Turmas Sem Quadro</th>
+            <th>Disponivel para Criar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in turno_capacity.turno_metrics %}
+          <tr>
+            <td>{{ row.turno_label }}</td>
+            <td>{{ row.slots_livres }}</td>
+            <td>{{ row.turmas_reservadas_sem_quadro }}</td>
+            <td><strong>{{ row.turmas_possiveis_disponivel }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="surface section-shell mb-4">
+    <div class="section-head">
+      <h2 class="section-title">Capacidade Docente</h2>
+      <p class="section-subtitle">
+        Limites ativos: {{ professor_capacity.max_slots_semana }} slot(s)/semana por professor e
+        {{ professor_capacity.max_slots_turno }} slot(s) por turno.
+        {% if professor_capacity.professores_adicionais_total > 0 %}
+        Deficit total: {{ professor_capacity.deficit_total_slots }} slot(s), sugerindo +{{ professor_capacity.professores_adicionais_total }} professor(es).
+        {% else %}
+        Quadro docente atual cobre a demanda planejada.
+        {% endif %}
+      </p>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Turno</th>
+            <th>Demanda Alocada</th>
+            <th>Reserva Sem Quadro</th>
+            <th>Demanda Planejada</th>
+            <th>Capacidade Docente</th>
+            <th>Saldo</th>
+            <th>Deficit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in professor_capacity.metrics %}
+          <tr>
+            <td>{{ row.turno_label }}</td>
+            <td>{{ row.demanda_alocada }}</td>
+            <td>{{ row.reserva_sem_quadro }}</td>
+            <td><strong>{{ row.demanda_planejada }}</strong></td>
+            <td>{{ row.capacidade_docente }}</td>
+            <td class="{{ 'text-danger' if row.saldo_slots < 0 else 'text-success' }}">{{ row.saldo_slots }}</td>
+            <td>
+              {% if row.deficit_slots > 0 %}
+              <span class="text-danger">{{ row.deficit_slots }} slot(s) / +{{ row.professores_adicionais_turno }} professor(es)</span>
+              {% else %}
+              <span class="text-success">0</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 
@@ -72,6 +150,9 @@
           <li class="{{ 'text-danger' if operation_panel.professores_sem_aptidao|length else 'text-success' }}">
             Professores sem aptidao: {{ operation_panel.professores_sem_aptidao|length }}
           </li>
+          <li class="{{ 'text-warning' if operation_panel.professores_aptidao_insuficiente|length else 'text-success' }}">
+            Professores com menos de 6 disciplinas aptas: {{ operation_panel.professores_aptidao_insuficiente|length }}
+          </li>
           <li class="{{ 'text-warning' if operation_panel.turmas_sem_quadro|length else 'text-success' }}">
             Turmas sem quadro: {{ operation_panel.turmas_sem_quadro|length }}
           </li>
@@ -104,46 +185,5 @@
     </div>
   </div>
 
-  <div class="surface section-shell">
-    <div class="section-head">
-      <h2 class="section-title">Alocacoes Sem Professor</h2>
-      <p class="section-subtitle">Priorize estas aulas para concluir a grade da turma.</p>
-    </div>
-    {% if operation_panel.horarios_sem_professor %}
-    <div class="table-responsive">
-      <table class="table table-hover">
-        <thead>
-          <tr>
-            <th>Turma</th>
-            <th>Dia</th>
-            <th>Horario</th>
-            <th>Disciplina</th>
-            <th>Sala</th>
-            <th>Acoes</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in operation_panel.horarios_sem_professor[:12] %}
-          <tr>
-            <td>{{ t.turma.curso.nome if t.turma and t.turma.curso else 'Curso' }} | {{ t.turma.codigo if t.turma else '-' }}</td>
-            <td>{{ t.dia }}</td>
-            <td>{{ t.hora_inicio }} - {{ t.hora_fim }}</td>
-            <td>{{ t.disciplina.nome if t.disciplina else 'Disciplina removida' }}</td>
-            <td>{{ t.sala.nome if t.sala else 'Sala removida' }}</td>
-            <td>
-              <a href="{{ url_for('main.alocar_professor_timetable', id=t.id) }}" class="btn btn-sm btn-primary">Alocar Professor</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="empty-state">
-      <h5>Sem pendencias de alocacao docente</h5>
-      <p>As aulas cadastradas ja possuem professor atribuido.</p>
-    </div>
-    {% endif %}
-  </div>
 </section>
 {% endblock %}

@@ -8,7 +8,7 @@ from flask_login import current_user
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
-from app.forms import get_shift_label, resolve_shift_slot_id
+from app.forms import MAX_TURMA_CAPACITY, get_shift_label, resolve_shift_slot_id
 from app.models import (
     Aluno,
     Curso,
@@ -352,11 +352,16 @@ def aluno_turma_same_semestre(aluno_id, turma_id):
 
 def turma_capacity_reached(turma_id):
     turma = Turma.query.filter_by(id=turma_id).first()
-    if turma is None or turma.quantidade_alunos is None:
+    if turma is None:
         return False
 
+    configured_limit = turma.quantidade_alunos
+    if configured_limit is None:
+        configured_limit = MAX_TURMA_CAPACITY
+    effective_limit = max(0, min(configured_limit, MAX_TURMA_CAPACITY))
+
     current_students = Matricula.query.filter_by(turma_id=turma_id).count()
-    return current_students >= turma.quantidade_alunos
+    return current_students >= effective_limit
 
 
 def timetable_capacity_reached(timetable_id):

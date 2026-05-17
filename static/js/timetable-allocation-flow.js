@@ -59,6 +59,12 @@
     const availabilityByKey = payload.availability_by_key || {};
     const combinations = Object.values(availabilityByKey);
     const professorToDisciplina = payload.professor_to_disciplina || {};
+    const professorToTurnos = payload.professor_to_turnos || {};
+    const professorWorkload = payload.professor_workload || {};
+    const slotToTurno = payload.slot_to_turno || {};
+    const professorLimits = payload.professor_limits || {};
+    const weeklyLimit = Number(professorLimits.weekly || 20);
+    const turnoLimit = Number(professorLimits.per_turno || 10);
     const turmaToDisciplina = payload.turma_to_disciplina || {};
 
     const optionCatalog = {
@@ -93,6 +99,49 @@
         .filter(function (idValue) {
           return Number.isFinite(idValue);
         });
+    }
+
+    function professorAllowedTurnos(professorId) {
+      const turnos = professorToTurnos[String(professorId)];
+      if (!Array.isArray(turnos)) {
+        return [];
+      }
+      return turnos;
+    }
+
+    function professorLoadSnapshot(professorId) {
+      const snapshot = professorWorkload[String(professorId)];
+      if (!snapshot || typeof snapshot !== 'object') {
+        return { total: 0, by_turno: {} };
+      }
+      return snapshot;
+    }
+
+    function professorEligibleForSlot(professorId, slotId) {
+      if (!professorId || !slotId) {
+        return true;
+      }
+      const turno = slotToTurno[String(slotId)];
+      if (!turno) {
+        return true;
+      }
+
+      const allowedTurnos = professorAllowedTurnos(professorId);
+      if (!allowedTurnos.includes(turno)) {
+        return false;
+      }
+
+      const load = professorLoadSnapshot(professorId);
+      const currentTotal = Number(load.total || 0);
+      const currentTurno = Number(((load.by_turno || {})[turno]) || 0);
+
+      if (currentTotal >= weeklyLimit) {
+        return false;
+      }
+      if (currentTurno >= turnoLimit) {
+        return false;
+      }
+      return true;
     }
 
     function turmaDisciplinaIds(turmaId) {
@@ -152,17 +201,26 @@
       }
 
       if (selections.disciplina && selections.professor) {
-        return professorCanTeach(selections.professor, selections.disciplina);
+        return (
+          professorCanTeach(selections.professor, selections.disciplina) &&
+          professorEligibleForSlot(selections.professor, combo.slot_id)
+        );
       }
 
       if (selections.disciplina && !selections.professor) {
         return combo.professor_ids.some(function (professorId) {
-          return professorCanTeach(professorId, selections.disciplina);
+          return (
+            professorCanTeach(professorId, selections.disciplina) &&
+            professorEligibleForSlot(professorId, combo.slot_id)
+          );
         });
       }
 
       if (selections.professor && !selections.disciplina) {
-        return professorDisciplinaIds(selections.professor).length > 0;
+        return (
+          professorDisciplinaIds(selections.professor).length > 0 &&
+          professorEligibleForSlot(selections.professor, combo.slot_id)
+        );
       }
 
       return true;

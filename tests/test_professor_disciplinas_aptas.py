@@ -38,6 +38,7 @@ def test_new_professor_allows_multiple_disciplinas(client, login, user_factory):
             "username": "prof_multi",
             "password": "123456",
             "password2": "123456",
+            "jornada_turnos": "matutino_vespertino",
             "disciplinas_ids": [str(disciplinas[0].id), str(disciplinas[1].id)],
             "submit": "1",
         },
@@ -49,6 +50,7 @@ def test_new_professor_allows_multiple_disciplinas(client, login, user_factory):
 
     professor = User.query.filter_by(username="prof_multi").first()
     assert professor is not None
+    assert professor.jornada_turnos == "matutino_vespertino"
     assert {disc.id for disc in professor.disciplinas_aptas} == {disciplinas[0].id, disciplinas[1].id}
 
 
@@ -83,6 +85,7 @@ def test_edit_professor_can_append_new_disciplinas(client, login, user_factory):
         f"/professor/edit/{professor.id}",
         data={
             "username": "prof_append",
+            "jornada_turnos": "vespertino_noturno",
             "disciplinas_ids": [str(disciplinas[0].id), str(disciplinas[1].id), str(disciplinas[2].id)],
             "submit": "1",
         },
@@ -94,6 +97,7 @@ def test_edit_professor_can_append_new_disciplinas(client, login, user_factory):
 
     updated = db.session.get(User, professor.id)
     assert updated is not None
+    assert updated.jornada_turnos == "vespertino_noturno"
     assert {disc.id for disc in updated.disciplinas_aptas} == {
         disciplinas[0].id,
         disciplinas[1].id,

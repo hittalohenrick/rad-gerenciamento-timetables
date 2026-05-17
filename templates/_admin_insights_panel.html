@@ -28,6 +28,77 @@
         <h3>{{ insights.summary.salas_ociosas }}</h3>
         <p>Salas Ociosas</p>
       </div>
+      <div class="stat-card stat-card-insight">
+        <h3>{{ turno_capacity.turmas_possiveis_disponivel_total }}</h3>
+        <p>Turmas Novas Possiveis</p>
+      </div>
+      <div class="stat-card stat-card-insight">
+        <h3>{{ professor_capacity.professores_adicionais_total }}</h3>
+        <p>Professores Necessarios</p>
+      </div>
+    </div>
+
+    <div class="table-shell surface-soft mb-3">
+      <h6 class="mb-3">Capacidade por Turno (5 disciplinas por turma)</h6>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Turno</th>
+              <th>Slots Livres</th>
+              <th>Turmas Sem Quadro</th>
+              <th>Disponivel para Criar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in turno_capacity.turno_metrics %}
+            <tr>
+              <td>{{ row.turno_label }}</td>
+              <td>{{ row.slots_livres }}</td>
+              <td>{{ row.turmas_reservadas_sem_quadro }}</td>
+              <td><strong>{{ row.turmas_possiveis_disponivel }}</strong></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-shell surface-soft mb-3">
+      <h6 class="mb-3">
+        Capacidade Docente por Turno (limites {{ professor_capacity.max_slots_semana }}/semana e
+        {{ professor_capacity.max_slots_turno }}/turno)
+      </h6>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Turno</th>
+              <th>Demanda Planejada</th>
+              <th>Capacidade Docente</th>
+              <th>Saldo</th>
+              <th>Deficit</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in professor_capacity.metrics %}
+            <tr>
+              <td>{{ row.turno_label }}</td>
+              <td>{{ row.demanda_planejada }}</td>
+              <td>{{ row.capacidade_docente }}</td>
+              <td class="{{ 'text-danger' if row.saldo_slots < 0 else 'text-success' }}">{{ row.saldo_slots }}</td>
+              <td>
+                {% if row.deficit_slots > 0 %}
+                <span class="text-danger">{{ row.deficit_slots }} / +{{ row.professores_adicionais_turno }}</span>
+                {% else %}
+                <span class="text-success">0</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="row">

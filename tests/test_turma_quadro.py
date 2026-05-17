@@ -1,7 +1,7 @@
 from datetime import time
 
 from app import db
-from app.forms import NIGHT_SHIFT_ID, allowed_slot_ids_for_turno, get_shift_bounds, resolve_shift_slot_id
+from app.forms import NIGHT_SHIFT_ID, WEEKDAY_VALUES, allowed_slot_ids_for_turno, get_shift_bounds, resolve_shift_slot_id
 from app.models import Curso, Disciplina, GradeCurricular, GradeCurricularItem, Sala, Timetable, Turma
 
 
@@ -95,8 +95,11 @@ def test_alocar_professor_filtra_por_aptidao_e_disponibilidade(client, login, us
     turma, disciplinas, salas = _setup_catalog(periodo=2, turno="matutino")
 
     prof_livre.disciplinas_aptas = [disciplinas[0]]
+    prof_livre.jornada_turnos = "matutino_vespertino"
     prof_ocupado.disciplinas_aptas = [disciplinas[0]]
+    prof_ocupado.jornada_turnos = "matutino_vespertino"
     prof_inapto.disciplinas_aptas = [disciplinas[1]]
+    prof_inapto.jornada_turnos = "matutino_vespertino"
     db.session.commit()
 
     login("admin", "Admin1234")
@@ -185,6 +188,7 @@ def test_alocar_professores_em_lote_da_turma(client, login, user_factory):
     professor = user_factory("prof_lote", role="professor", password="123456", email="prof_lote@login.local")
     turma, disciplinas, _ = _setup_catalog(periodo=2, turno="matutino")
     professor.disciplinas_aptas = disciplinas
+    professor.jornada_turnos = "matutino_vespertino"
     db.session.commit()
 
     login("admin", "Admin1234")
@@ -245,3 +249,193 @@ def test_alocar_professores_em_lote_exige_grade_completa(client, login, user_fac
     assert b"Conclua primeiro a grade da turma" in response.data
     unchanged_rows = Timetable.query.filter_by(turma_id=turma.id).all()
     assert any(row.professor_id is None for row in unchanged_rows)
+
+
+def test_new_timetable_bloqueia_professor_fora_da_jornada(client, login, user_factory):
+    user_factory("admin", role="admin", password="Admin1234", email="admin@example.com")
+    professor = user_factory("prof_jornada", role="professor", password="123456", email="prof_jornada@login.local")
+    professor.jornada_turnos = "vespertino_noturno"
+    turma, disciplinas, salas = _setup_catalog(periodo=2, turno="matutino")
+    professor.disciplinas_aptas = [disciplinas[0]]
+    db.session.commit()
+
+    login("admin", "Admin1234")
+    response = client.post(
+        "/timetable/new",
+        data={
+            "dia": "Segunda",
+            "horario_id": allowed_slot_ids_for_turno("matutino")[0],
+            "turma_id": str(turma.id),
+            "sala_id": str(salas[0].id),
+            "professor_id": str(professor.id),
+            "disciplina_id": str(disciplinas[0].id),
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"nao possui jornada para o turno Matutino" in response.data
+    assert Timetable.query.filter_by(turma_id=turma.id).count() == 0
+
+
+def test_new_timetable_bloqueia_excesso_de_10_slots_no_turno(client, login, user_factory):
+    user_factory("admin", role="admin", password="Admin1234", email="admin@example.com")
+    professor = user_factory("prof_turno_limite", role="professor", password="123456", email="prof_turno_limite@login.local")
+    professor.jornada_turnos = "matutino_vespertino"
+    turma, disciplinas, salas = _setup_catalog(periodo=2, turno="matutino")
+    professor.disciplinas_aptas = [disciplinas[0]]
+    db.session.flush()
+
+    weekdays = WEEKDAY_VALUES[:5]
+    matutino_slots = allowed_slot_ids_for_turno("matutino")
+    for day_label in weekdays:
+        for slot_id in matutino_slots:
+            slot_start, slot_end = get_shift_bounds(slot_id)
+            db.session.add(
+                Timetable(
+                    dia=day_label,
+                    hora_inicio=slot_start or time(7, 0),
+                    hora_fim=slot_end or time(8, 30),
+                    sala_id=salas[0].id,
+                    professor_id=professor.id,
+                    disciplina_id=disciplinas[0].id,
+                    turma_id=turma.id,
+                )
+            )
+
+    turma_extra = Turma(
+        curso_id=turma.curso_id,
+        codigo="SI-2M-C",
+        semestre_letivo=turma.semestre_letivo,
+        periodo=turma.periodo,
+        turno="matutino",
+        quantidade_alunos=20,
+    )
+    db.session.add(turma_extra)
+    db.session.commit()
+
+    login("admin", "Admin1234")
+    response = client.post(
+        "/timetable/new",
+        data={
+            "dia": "Sabado",
+            "horario_id": matutino_slots[0],
+            "turma_id": str(turma_extra.id),
+            "sala_id": str(salas[1].id),
+            "professor_id": str(professor.id),
+            "disciplina_id": str(disciplinas[0].id),
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"limite 10" in response.data
+
+
+def test_bulk_alocacao_bloqueia_quando_estoura_limite_semanal(client, login, user_factory):
+    user_factory("admin", role="admin", password="Admin1234", email="admin@example.com")
+    professor = user_factory("prof_bulk_limite", role="professor", password="123456", email="prof_bulk_limite@login.local")
+    professor.jornada_turnos = "vespertino_noturno"
+    turma, disciplinas, salas = _setup_catalog(periodo=2, turno="vespertino")
+    professor.disciplinas_aptas = disciplinas
+    db.session.flush()
+
+    weekdays = WEEKDAY_VALUES[:5]
+    vespertino_slots = allowed_slot_ids_for_turno("vespertino")
+    noturno_slots = allowed_slot_ids_for_turno("noturno")
+    for day_label in weekdays:
+        for slot_id in vespertino_slots:
+            slot_start, slot_end = get_shift_bounds(slot_id)
+            db.session.add(
+                Timetable(
+                    dia=day_label,
+                    hora_inicio=slot_start or time(13, 0),
+                    hora_fim=slot_end or time(14, 30),
+                    sala_id=salas[0].id,
+                    professor_id=professor.id,
+                    disciplina_id=disciplinas[0].id,
+                    turma_id=turma.id,
+                )
+            )
+
+    turma_noturno = Turma(
+        curso_id=turma.curso_id,
+        codigo="SI-2N-A",
+        semestre_letivo=turma.semestre_letivo,
+        periodo=turma.periodo,
+        turno="noturno",
+        quantidade_alunos=20,
+    )
+    db.session.add(turma_noturno)
+    db.session.flush()
+    noturno_count = 0
+    for day_label in weekdays:
+        for slot_id in noturno_slots:
+            if noturno_count >= 9:
+                break
+            slot_start, slot_end = get_shift_bounds(slot_id)
+            db.session.add(
+                Timetable(
+                    dia=day_label,
+                    hora_inicio=slot_start or time(18, 0),
+                    hora_fim=slot_end or time(19, 30),
+                    sala_id=salas[1].id if len(salas) > 1 else salas[0].id,
+                    professor_id=professor.id,
+                    disciplina_id=disciplinas[1].id,
+                    turma_id=turma_noturno.id,
+                )
+            )
+            noturno_count += 1
+        if noturno_count >= 9:
+            break
+    db.session.commit()
+
+    turma_pendente = Turma(
+        curso_id=turma.curso_id,
+        codigo="SI-2N-B",
+        semestre_letivo=turma.semestre_letivo,
+        periodo=turma.periodo,
+        turno="noturno",
+        quantidade_alunos=20,
+    )
+    db.session.add(turma_pendente)
+    db.session.flush()
+    pending_rows = []
+    pending_matrix = [
+        ("Sabado", noturno_slots[0], disciplinas[0].id),
+        ("Sabado", noturno_slots[1], disciplinas[1].id),
+        ("Domingo", noturno_slots[0], disciplinas[2].id),
+        ("Domingo", noturno_slots[1], disciplinas[3].id),
+    ]
+    for day_label, slot_id, disciplina_id in pending_matrix:
+        slot_start, slot_end = get_shift_bounds(slot_id)
+        row = Timetable(
+            dia=day_label,
+            hora_inicio=slot_start or time(18, 0),
+            hora_fim=slot_end or time(19, 30),
+            sala_id=salas[0].id,
+            professor_id=None,
+            disciplina_id=disciplina_id,
+            turma_id=turma_pendente.id,
+        )
+        pending_rows.append(row)
+    db.session.add_all(pending_rows)
+    db.session.commit()
+    pending = pending_rows[0]
+
+    login("admin", "Admin1234")
+    response = client.post(
+        f"/turma/{turma_pendente.id}/alocar-professores-lote",
+        data={
+            "submit": "1",
+            f"professor_for_{pending_rows[0].id}": str(professor.id),
+            f"professor_for_{pending_rows[1].id}": str(professor.id),
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"limite 20" in response.data
+    unchanged = db.session.get(Timetable, pending.id)
+    assert unchanged is not None
+    assert unchanged.professor_id is None

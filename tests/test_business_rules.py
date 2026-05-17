@@ -111,8 +111,8 @@ def test_matricula_blocks_when_capacity_is_reached(client, login, user_factory):
         disciplina_id=disc.id,
         turma_id=turma.id,
     )
-    aluno_1 = Aluno(nome="Aluno Um", matricula="A001")
-    aluno_2 = Aluno(nome="Aluno Dois", matricula="A002")
+    aluno_1 = Aluno(nome="Aluno Um", matricula="A001", curso_id=turma.curso_id)
+    aluno_2 = Aluno(nome="Aluno Dois", matricula="A002", curso_id=turma.curso_id)
     db.session.add_all([oferta, aluno_1, aluno_2])
     db.session.commit()
 
@@ -147,7 +147,7 @@ def test_professor_attendance_blocks_future_dates(client, login, user_factory):
         disciplina_codigo="HIS001",
         turma_codigo="ES-1A",
     )
-    aluno = Aluno(nome="Aluno Presenca", matricula="A100")
+    aluno = Aluno(nome="Aluno Presenca", matricula="A100", curso_id=turma_ref.curso_id)
     db.session.add_all([sala, aluno])
     db.session.commit()
 
@@ -191,7 +191,7 @@ def test_professor_attendance_saves_valid_date(client, login, user_factory):
         disciplina_codigo="GEO001",
         turma_codigo="SI-1A",
     )
-    aluno = Aluno(nome="Aluno Presente", matricula="A101")
+    aluno = Aluno(nome="Aluno Presente", matricula="A101", curso_id=turma_ref.curso_id)
     db.session.add_all([sala, aluno])
     db.session.commit()
 
@@ -224,3 +224,143 @@ def test_professor_attendance_saves_valid_date(client, login, user_factory):
     presenca = Presenca.query.filter_by(aluno_id=aluno.id, timetable_id=turma.id).first()
     assert presenca is not None
     assert presenca.presente is True
+
+
+def test_professor_attendance_blocks_edit_on_existing_date(client, login, user_factory):
+    prof = user_factory("professor4", role="professor", password="123456", email="professor4@login.local")
+
+    sala = Sala(nome="Sala Chamada 3", capacidade=30)
+    disc, turma_ref = _setup_academic_catalog(
+        curso_nome="Engenharia de Computacao",
+        curso_codigo="EC",
+        disciplina_nome="Redes",
+        disciplina_codigo="RED001",
+        turma_codigo="EC-1A",
+    )
+    aluno = Aluno(nome="Aluno Travado", matricula="A102", curso_id=turma_ref.curso_id)
+    db.session.add_all([sala, aluno])
+    db.session.commit()
+
+    turma = Timetable(
+        dia="Segunda",
+        hora_inicio=time(18, 0),
+        hora_fim=time(19, 30),
+        sala_id=sala.id,
+        professor_id=prof.id,
+        disciplina_id=disc.id,
+        turma_id=turma_ref.id,
+    )
+    db.session.add(turma)
+    db.session.commit()
+
+    db.session.add(Matricula(aluno_id=aluno.id, turma_id=turma_ref.id))
+    db.session.commit()
+
+    login("professor4", "123456")
+
+    valid_date = suggested_attendance_date("Segunda").strftime("%d/%m/%Y")
+    first_response = client.post(
+        f"/professor/turma/{turma.id}/chamada",
+        data={"chamada_data": valid_date, "presentes": [str(aluno.id)]},
+        follow_redirects=True,
+    )
+    assert first_response.status_code == 200
+    assert b"Chamada salva com sucesso." in first_response.data
+
+    second_response = client.post(
+        f"/professor/turma/{turma.id}/chamada",
+        data={"chamada_data": valid_date, "presentes": []},
+        follow_redirects=True,
+    )
+    assert second_response.status_code == 200
+    assert b"Esta chamada ja foi registrada e nao pode ser editada." in second_response.data
+
+    presenca = Presenca.query.filter_by(aluno_id=aluno.id, timetable_id=turma.id).first()
+    assert presenca is not None
+    assert presenca.presente is True
+
+
+def test_admin_can_inactivate_aluno_and_keep_attendance_history(client, login, user_factory):
+    user_factory("admin", role="admin", password="Admin1234", email="admin@example.com")
+    professor = user_factory(
+        "professor5",
+        role="professor",
+        password="123456",
+        email="professor5@login.local",
+    )
+
+    sala = Sala(nome="Sala Delete Aluno", capacidade=30)
+    disc, turma_ref = _setup_academic_catalog(
+        curso_nome="Sistemas para Internet",
+        curso_codigo="SPI",
+        disciplina_nome="Qualidade de Software",
+        disciplina_codigo="QS001",
+        turma_codigo="SPI-1A",
+    )
+    aluno = Aluno(nome="Aluno Excluir", matricula="A103", curso_id=turma_ref.curso_id)
+    db.session.add_all([sala, aluno])
+    db.session.flush()
+
+    timetable = Timetable(
+        dia="Segunda",
+        hora_inicio=time(8, 0),
+        hora_fim=time(9, 0),
+        sala_id=sala.id,
+        professor_id=professor.id,
+        disciplina_id=disc.id,
+        turma_id=turma_ref.id,
+    )
+    db.session.add(timetable)
+    db.session.flush()
+
+    presenca = Presenca(
+        data=suggested_attendance_date("Segunda"),
+        presente=True,
+        aluno_id=aluno.id,
+        timetable_id=timetable.id,
+    )
+    db.session.add(presenca)
+    db.session.commit()
+
+    login("admin", "Admin1234")
+    response = client.post(
+        f"/aluno/delete/{aluno.id}",
+        data={"submit": "1"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Aluno inativado com sucesso." in response.data
+    aluno_db = db.session.get(Aluno, aluno.id)
+    assert aluno_db is not None
+    assert aluno_db.ativo is False
+    assert db.session.get(Presenca, presenca.id) is not None
+
+    alunos_page = client.get("/alunos")
+    assert alunos_page.status_code == 200
+    assert b"Aluno Excluir" not in alunos_page.data
+
+
+def test_admin_new_aluno_reactivates_inactive_matricula(client, login, user_factory):
+    user_factory("admin", role="admin", password="Admin1234", email="admin@example.com")
+    curso = Curso(nome="Curso Reativacao", codigo="CR", ativo=True, quantidade_periodos=4)
+    db.session.add(curso)
+    db.session.flush()
+    aluno_inativo = Aluno(nome="Aluno Inativo", matricula="A200", curso_id=curso.id, ativo=False)
+    db.session.add(aluno_inativo)
+    db.session.commit()
+
+    login("admin", "Admin1234")
+    response = client.post(
+        "/aluno/new",
+        data={"nome": "Aluno Reativado", "matricula": "A200", "curso_id": str(curso.id)},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Aluno reativado com sucesso." in response.data
+    aluno_db = Aluno.query.filter_by(matricula="A200").first()
+    assert aluno_db is not None
+    assert aluno_db.id == aluno_inativo.id
+    assert aluno_db.nome == "Aluno Reativado"
+    assert aluno_db.ativo is True
